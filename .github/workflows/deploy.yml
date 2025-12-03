@@ -20,18 +20,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '16'  # 兼容你的 Hexo 环境
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        id: npm-cache
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: |
@@ -56,9 +47,6 @@ jobs:
           git config --global user.email "798695922@qq.com"
 
       - name: Deploy to GitHub Pages
-        env:
-          GIT_USERNAME: liudungen
-          GIT_EMAIL: 798695922@qq.com
         run: |
           if [ ! -d "public" ]; then
             echo "ERROR: public directory not found!"
@@ -66,10 +54,10 @@ jobs:
           fi
           cd public
           git init
-          git config user.name "$GIT_USERNAME"
-          git config user.email "$GIT_EMAIL"
+          git config user.name "liudungen"
+          git config user.email "798695922@qq.com"
           git branch -m main
           git add -A
           git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-          # 直接推送，不做 TOKEN 判断（Secret 实际存在）
-          git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+          # 👇 替换成你本地验证成功的「用户名:令牌」（比如 liudungen:ghp_abcdef123456）
+          git push -f "https://liudungen:ghp_你的实际PAT令牌@github.com/liudungen/liudungen.github.io.git" main
