@@ -44,3 +44,8 @@ jobs:
         git add -A
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
         git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+        - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+        submodules: false  # 改为 false，跳过子模块拉取（解决报错）
+        fetch-depth: 0
