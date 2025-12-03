@@ -20,35 +20,47 @@ jobs:
           node-version: '16'
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: 强制初始化 Hexo 环境（核心修复）
         run: |
+          # 1. 删除旧临时目录，避免残留
+          rm -rf temp-hexo
+          # 2. 初始化标准 Hexo 项目（这是关键：得到能正常执行 generate 的环境）
+          hexo init temp-hexo
+          cd temp-hexo
+          
+          # 3. 创建文章目录，复制你的 test.md
+          mkdir -p source/_posts
+          cp -r ../source/_posts/* source/_posts/
+          
+          # 4. 复制你的配置文件
+          cp ../_config.yml _config.yml
+          
+          # 5. 安装依赖（确保生成命令可用）
           npm config set registry https://registry.npmmirror.com
           npm install hexo-cli -g --force
           npm install --legacy-peer-deps --force
           npm install hexo-renderer-pug hexo-renderer-stylus --save --force
 
-      - name: Build Static Files (终极修复：独立执行生成命令)
-        run: |
-          echo "🔍 验证环境和文件"
-          ls -la _config.yml
+          # 6. 验证文章是否复制成功（看日志里有没有 test.md）
+          echo "🔍 Hexo 目录下的文章"
           ls -la source/_posts/
-          hexo -v  # 再次验证 Hexo 可用
-
-          # 关键修复：每个 Hexo 命令单独执行，加 && 确保前一个成功再执行下一个
+          
+          # 7. 强制生成静态文件
           hexo clean && echo "✅ 清理缓存成功"
-          hexo generate && echo "✅ 生成静态文件成功"
+          hexo generate --force && echo "✅ 生成静态文件成功"
 
-          # 验证生成结果
-          echo "🔍 新文章是否生成（查看 2025/12 目录）"
+          # 8. 验证生成结果（看有没有 2025/12/03 目录）
+          echo "🔍 Hexo 生成的 2025/12 目录"
           ls -la public/2025/12/
-          echo "🔍 css/_custom 是否同步"
-          ls -la public/css/
+          
+          # 9. 把生成的 public 复制回原路径，方便推送
+          cp -r public ../public
 
-          # 强制检查：没有 2025/12/03 目录则失败（确保新文章生成）
-          if [ ! -d "public/2025/12/03" ]; then
-            echo "❌ 新文章生成失败！public/2025/12/03 目录不存在"
-            exit 1
-          fi
+      - name: 验证最终生成结果
+        run: |
+          echo "🔍 最终要推送的 public 目录内容"
+          ls -la public/2025/12/
+          ls -la public/css/
 
       - name: Deploy to Pages
         run: |
