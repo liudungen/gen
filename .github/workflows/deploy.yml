@@ -14,50 +14,51 @@ jobs:
           submodules: false
           fetch-depth: 0
 
-      - name: Setup Node.js 16
+      - name: Setup Node.js 20（兼容 Hexo 8.x）
         uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '20'  # 关键：换成 Node.js 20
           cache: 'npm'
 
-      - name: 安装 Hexo 并初始化环境（解决 command not found）
+      - name: 安装 Hexo 并初始化环境（版本兼容）
         run: |
-          # 1. 全局安装 Hexo，确保命令可用
+          # 1. 全局安装 Hexo（锁定 8.1.1 版本，避免自动升级）
           npm config set registry https://registry.npmmirror.com
-          npm install hexo-cli -g --force
-          # 2. 查看 Hexo 安装路径，确保命令能被找到
+          npm install hexo-cli@4.3.2 -g --force  # 锁定 CLI 版本
           echo "🔍 Hexo 安装路径"
           which hexo
-          # 3. 删除旧临时目录
+          
+          # 2. 删除旧临时目录
           rm -rf temp-hexo
-          # 4. 用绝对路径执行 hexo init（避免命令找不到）
+          
+          # 3. 初始化 Hexo 项目
           $(which hexo) init temp-hexo
           cd temp-hexo
           
-          # 5. 安装项目依赖
-          npm install --legacy-peer-deps --force
+          # 4. 锁定 Hexo 核心版本（避免兼容问题）
+          npm install hexo@8.1.1 --legacy-peer-deps --force
           npm install hexo-renderer-pug hexo-renderer-stylus --save --force
 
-          # 6. 创建文章目录并复制 test.md
+          # 5. 复制文章（test.md 已存在）
           mkdir -p source/_posts
           cp -r ../source/_posts/* source/_posts/
           echo "🔍 Hexo 目录下的文章"
-          ls -la source/_posts/  # 确认 test.md 存在
+          ls -la source/_posts/
           
-          # 7. 复制配置文件
+          # 6. 复制配置文件
           cp ../_config.yml _config.yml
 
-          # 8. 生成静态文件（用绝对路径执行）
-          echo "✅ 开始清理缓存"
+          # 7. 生成静态文件（终于能正常执行了！）
+          echo "✅ 清理缓存"
           $(which hexo) clean
-          echo "✅ 开始生成文件"
+          echo "✅ 生成静态文件"
           $(which hexo) generate --force
           
-          # 9. 验证生成结果
+          # 8. 验证生成结果（关键看 2025/12/03）
           echo "🔍 Hexo 生成的 2025/12 目录"
           ls -la public/2025/12/
           
-          # 10. 复制 public 目录回原路径
+          # 9. 复制 public 目录回原路径
           cp -r public ../public
 
       - name: 验证最终生成结果
