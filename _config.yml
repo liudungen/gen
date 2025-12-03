@@ -9,7 +9,7 @@ timezone: ""
 # URL 配置（必须与博客访问地址一致）
 url: https://liudungen.github.io
 root: /
-permalink: :year/:month/:day/:title/
+permalink: :year/:month/:id/  # 用“年/月/ID”作为路径，避开中文标题
 permalink_defaults:
 
 # 主题配置（关联已有的 Butterfly 主题）
