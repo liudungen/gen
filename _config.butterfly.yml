@@ -49,7 +49,7 @@ favicon: /img/favicon.png
 avatar:
   img: /img/butterfly-icon.png
   effect: false
-
+index_img: /img/index_bg.png
 disable_top_img: false
 default_top_img:
 index_img:
