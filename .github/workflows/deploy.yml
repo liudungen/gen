@@ -67,6 +67,14 @@ jobs:
           
           # 生成静态文件（增加调试日志，定位布局问题）
           hexo clean
+          # 在 "生成静态文件" 步骤之前添加：
+          echo "=== 配置URL结构 ==="
+          # 修改 _config.yml
+          sed -i 's/^permalink:.*/permalink: :year\/:month\/:title\//' _config.yml
+          sed -i 's/^pretty_urls:.*/pretty_urls:/' _config.yml
+          echo "  trailing_index: true" >> _config.yml
+          echo "  trailing_html: true" >> _config.yml
+          echo "new_post_name: :title.md" >> _config.yml
           hexo generate --force --debug
           
           # 验证生成结果
