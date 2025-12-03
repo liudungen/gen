@@ -35,8 +35,8 @@ jobs:
     - name: Deploy to GitHub Pages
       run: |
         # 完全对齐模板的 Git 身份（用你的正确信息）
-        git config --global user.name "liudungenn"  # 模板的用户名（你的 GitHub 用户名，注意末尾双 n？）
-        git config --global user.email "liudungen@163.com"  # 模板的邮箱（正确）
+        git config --global user.name "liudungen"  # 模板的用户名（你的 GitHub 用户名，注意末尾双 n？）
+        git config --global user.email "798695922@qq.com"  # 模板的邮箱（正确）
         
         cd public
         git init
@@ -45,4 +45,4 @@ jobs:
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
         
         # 关键：部署地址用模板的（确保用户名和仓库名正确）
-        git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungenn/liudungenn.github.io.git" main
+        git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
