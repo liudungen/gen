@@ -40,13 +40,6 @@ jobs:
           npm install --legacy-peer-deps
           npm install hexo-renderer-pug hexo-renderer-stylus --save
 
-      - name: Debug - List files
-        run: |
-          echo "Current directory structure:"
-          ls -la
-          echo "Theme directory:"
-          ls -la themes/
-
       - name: Generate static files
         run: |
           hexo clean
@@ -66,14 +59,9 @@ jobs:
         env:
           GIT_USERNAME: liudungen
           GIT_EMAIL: 798695922@qq.com
-          TOKEN: ${{ secrets.HEXO_DEPLOY_TOKEN }}  # 环境变量传递Secret
         run: |
           if [ ! -d "public" ]; then
             echo "ERROR: public directory not found!"
-            exit 1
-          fi
-          if [ -z "$TOKEN" ]; then
-            echo "ERROR: HEXO_DEPLOY_TOKEN is not set!"
             exit 1
           fi
           cd public
@@ -83,4 +71,5 @@ jobs:
           git branch -m main
           git add -A
           git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-          git push -f "https://x-access-token:$TOKEN@github.com/liudungen/liudungen.github.io.git" main
+          # 直接推送，不做 TOKEN 判断（Secret 实际存在）
+          git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
