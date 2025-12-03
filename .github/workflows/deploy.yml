@@ -22,7 +22,7 @@ jobs:
 
       - name: 安装 Hexo 并生成静态文件
         run: |
-          # 锚定仓库根目录（关键：避免目录切换混乱）
+          # 锚定仓库根目录
           REPO_ROOT=$(pwd)
           echo "仓库根目录: $REPO_ROOT"
           
@@ -35,24 +35,41 @@ jobs:
           # 清理旧目录
           rm -rf "$REPO_ROOT/temp-hexo"
           
-          # 初始化 Hexo（全程用绝对路径）
-          hexo init "$REPO_ROOT/temp-hexo"
+          # 初始化 Hexo（指定默认主题，避免主题缺失）
+          hexo init "$REPO_ROOT/temp-hexo" --theme landscape
           cd "$REPO_ROOT/temp-hexo"
           
-          # 安装特定版本 Hexo
+          # 安装 Hexo 核心依赖 + 默认主题（关键：解决 layout 缺失）
           npm install hexo@8.1.1 --legacy-peer-deps
           npm install hexo-renderer-pug hexo-renderer-stylus --save
+          # 强制安装默认主题 landscape（确保布局模板存在）
+          npm install hexo-theme-landscape --save
           
-          # 复制文章和配置（用绝对路径避免目录问题）
+          # 复制自定义配置前，先备份默认配置（避免配置覆盖导致主题失效）
+          cp _config.yml _config.default.yml
+          # 复制自定义配置（若存在），不存在则用默认配置
+          if [ -f "$REPO_ROOT/_config.yml" ]; then
+            cp "$REPO_ROOT/_config.yml" _config.yml
+            # 修复配置中可能的主题错误：强制指定存在的主题
+            sed -i 's/^theme:.*/theme: landscape/' _config.yml
+          fi
+          
+          # 复制文章（容错：无文章时不报错）
           mkdir -p source/_posts
-          cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ || echo "无文章需要复制"
-          cp "$REPO_ROOT/_config.yml" _config.yml || echo "未找到自定义配置文件"
+          cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ || echo "提示：无自定义文章需要复制"
           
-          # 生成静态文件
+          # 验证主题目录是否存在（关键：确保布局模板存在）
+          if [ ! -d "themes/landscape" ]; then
+            echo "❌ 主题 landscape 目录缺失，尝试重新克隆"
+            rm -rf themes/landscape
+            git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+          fi
+          
+          # 生成静态文件（增加调试日志，定位布局问题）
           hexo clean
-          hexo generate --force
+          hexo generate --force --debug
           
-          # 验证生成结果（关键：确认 public 目录存在）
+          # 验证生成结果
           echo "===== 生成的静态文件列表 ====="
           ls -la public/ || echo "public 目录为空"
           if [ ! -d "public" ]; then
@@ -62,7 +79,6 @@ jobs:
 
       - name: 准备部署目录
         run: |
-          # 始终锚定仓库根目录
           REPO_ROOT=$(pwd)
           echo "当前仓库根目录: $REPO_ROOT"
           
@@ -75,7 +91,7 @@ jobs:
             exit 1
           fi
           
-          # 移动静态文件到根目录（绝对路径）
+          # 移动静态文件到根目录
           mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
           
           # 验证最终结果
@@ -95,12 +111,11 @@ jobs:
           git init
           git checkout -b gh-pages
           git add -A
-          # 处理空提交（避免无文件时失败）
           git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')" || git commit --allow-empty -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
 
       - name: 清理临时文件
-        if: always()  # 无论前面是否失败，都清理
+        if: always()
         run: |
           rm -rf temp-hexo
           echo "✅ 部署流程完成（清理完毕）"
