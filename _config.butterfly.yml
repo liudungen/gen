@@ -99,10 +99,10 @@ index_site_info_top:
 index_top_img_height:
 
 subtitle:
-  enable: false
+  enable: true
   effect: true
   typed_option:
-  source: false
+  source: true
   sub:
   - 不停止思考
   - 不停止怀疑
