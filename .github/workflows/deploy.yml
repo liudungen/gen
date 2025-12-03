@@ -17,36 +17,39 @@ jobs:
           rm -rf blog
           
           # 初始化
-          npx hexo-cli init blog --theme landscape
+          npx hexo-cli init blog
           cd blog
           
           # 安装依赖
-          npm install hexo@8.1.1 hexo-theme-landscape hexo-renderer-pug hexo-renderer-stylus
+          npm install hexo@8.1.1 hexo-renderer-pug hexo-renderer-stylus
+          npm install hexo-theme-butterfly  # 🎯 安装蝴蝶主题
           
-          # 强制主题
-          rm -rf themes/landscape
-          git clone --depth=1 https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
-          
-          # 配置
-          sed -i 's|^theme:.*|theme: landscape|' _config.yml
+          # 🎯 配置蝴蝶主题
+          sed -i 's|^theme:.*|theme: butterfly|' _config.yml
           sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
+          
+          # 如果有自定义配置，使用它
+          if [ -f "../_config.yml" ]; then
+            echo "使用你的配置..."
+            cp ../_config.yml _config.yml
+            # 确保主题正确
+            sed -i 's|^theme:.*|theme: butterfly|' _config.yml
+          fi
+          
+          # 如果有主题配置文件，也复制
+          if [ -f "../_config.butterfly.yml" ] || [ -f "../_config.butterfly.yaml" ]; then
+            echo "复制主题配置..."
+            cp ../_config.butterfly.yml _config.butterfly.yml 2>/dev/null || true
+            cp ../_config.butterfly.yaml _config.butterfly.yaml 2>/dev/null || true
+          fi
           
           # 删除默认文章
           rm -f source/_posts/hello-world.md
           
-          # 复制你的文章（简化，避免EOF错误）
+          # 复制文章
           mkdir -p source/_posts
           if [ -d "../source/_posts" ]; then
             cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
-          else
-            # 简单创建文章，不用EOF
-            echo "---" > source/_posts/我的博客.md
-            echo "title: 我的博客" >> source/_posts/我的博客.md
-            echo "date: 2025-12-03 16:00:00" >> source/_posts/我的博客.md
-            echo "tags: [博客, Hexo]" >> source/_posts/我的博客.md
-            echo "---" >> source/_posts/我的博客.md
-            echo "" >> source/_posts/我的博客.md
-            echo "欢迎来到我的博客！" >> source/_posts/我的博客.md
           fi
           
           # 生成
@@ -66,7 +69,7 @@ jobs:
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Deploy with butterfly $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "✅ 部署完成！访问：https://liudungen.github.io"
+          echo "🎉 蝴蝶主题部署完成！访问：https://liudungen.github.io"
