@@ -167,8 +167,8 @@ footer:
     since: 2025
   copyright:
     enable: true
-    version: true
-  custom_text:
+    version: false
+  custom_text:hey的日记本
 
 # --------------------------------------
 # Aside Settings
