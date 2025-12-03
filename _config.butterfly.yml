@@ -168,7 +168,7 @@ footer:
   copyright:
     enable: true
     version: false
-  custom_text:hey的日记本
+  custom_text:"hey的日记本"
 
 # --------------------------------------
 # Aside Settings
