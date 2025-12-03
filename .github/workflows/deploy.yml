@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Build and Deploy
+      - name: Build with Theme Fix
         run: |
           # 清理
           rm -rf site
@@ -26,47 +26,72 @@ jobs:
           npx hexo-cli@4.3.2 init site --theme landscape
           cd site
           
-          # 🎯 强制安装所有必要依赖
-          echo "=== 安装依赖 ==="
-          npm install hexo@8.1.1 --save
-          npm install hexo-theme-landscape --save
-          npm install hexo-renderer-pug hexo-renderer-stylus --save
+          # 安装所有必要依赖
+          npm install hexo@8.1.1
+          npm install hexo-theme-landscape
+          npm install hexo-renderer-pug hexo-renderer-stylus
           
-          # 🎯 确保主题存在
-          echo "=== 检查主题 ==="
-          if [ ! -d "themes/landscape" ] || [ -z "$(ls -A themes/landscape 2>/dev/null)" ]; then
-            echo "主题缺失，重新克隆..."
-            rm -rf themes/landscape
-            git clone --depth=1 https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
-          fi
-          echo "主题目录:"
+          # 🎯 强制主题设置
+          echo "=== 主题强制设置 ==="
+          
+          # 1. 删除并重新克隆主题
+          rm -rf themes/landscape
+          git clone --depth=1 https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+          
+          # 2. 完全重建配置文件
+          cat > _config.yml << 'EOF'
+title: 我的博客
+subtitle: ''
+description: ''
+keywords:
+author: liudungen
+language: zh-CN
+timezone: Asia/Shanghai
+url: https://liudungen.github.io
+
+# URL 设置
+permalink: :year/:month/:title/
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+
+# 主题（强制设置）
+theme: landscape
+
+# 新文章名称
+new_post_name: :title.md
+
+# 生成器
+index_generator:
+  per_page: 10
+  order_by: -date
+EOF
+          
+          echo "✅ 配置文件已重建"
+          
+          # 3. 验证主题结构
+          echo "=== 主题结构 ==="
           ls -la themes/landscape/
+          echo "CSS文件:"
+          find themes/landscape -name "*.styl" -o -name "*.css" | head -10
           
-          # 配置
-          sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
-          
-          # 文章
-          rm -f source/_posts/hello-world.md 2>/dev/null
-          
-          if [ -d "../source/_posts" ]; then
-            mkdir -p source/_posts
-            cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
-            echo "文章已复制"
-          fi
+          # 处理文章
+          rm -f source/_posts/hello-world.md
+          mkdir -p source/_posts
+          [ -d "../source/_posts" ] && cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
           
           # 生成
           echo "=== 生成静态文件 ==="
           npx hexo clean
           npx hexo generate
           
-          # 验证
-          if [ ! -d "public" ]; then
-            echo "❌ 生成失败"
-            exit 1
-          fi
+          # 4. 验证生成结果
+          echo "=== 验证生成 ==="
+          echo "CSS文件:"
+          ls -la public/css/ 2>/dev/null || echo "无css目录"
           
-          echo "✅ 生成成功"
-          echo "文件数量: $(find public -type f | wc -l)"
+          echo "首页样式链接:"
+          grep -o 'href="[^"]*\.css"' public/index.html 2>/dev/null || echo "无CSS链接"
           
           # 部署
           cd public
@@ -75,7 +100,7 @@ jobs:
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Deploy with theme fix $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "🎉 部署完成！访问：https://liudungen.github.io"
+          echo "🎉 部署完成！强制刷新访问：https://liudungen.github.io?t=$(date +%s)"
