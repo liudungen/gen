@@ -22,6 +22,10 @@ jobs:
 
       - name: 安装 Hexo 并生成静态文件
         run: |
+          # 锚定仓库根目录（关键：避免目录切换混乱）
+          REPO_ROOT=$(pwd)
+          echo "仓库根目录: $REPO_ROOT"
+          
           # 设置 npm 镜像
           npm config set registry https://registry.npmmirror.com
           
@@ -29,57 +33,74 @@ jobs:
           npm install hexo-cli@4.3.2 -g
           
           # 清理旧目录
-          rm -rf temp-hexo
+          rm -rf "$REPO_ROOT/temp-hexo"
           
-          # 初始化 Hexo
-          hexo init temp-hexo
-          cd temp-hexo
+          # 初始化 Hexo（全程用绝对路径）
+          hexo init "$REPO_ROOT/temp-hexo"
+          cd "$REPO_ROOT/temp-hexo"
           
           # 安装特定版本 Hexo
           npm install hexo@8.1.1 --legacy-peer-deps
           npm install hexo-renderer-pug hexo-renderer-stylus --save
           
-          # 复制文章和配置
+          # 复制文章和配置（用绝对路径避免目录问题）
           mkdir -p source/_posts
-          cp -r ../source/_posts/* source/_posts/
-          cp ../_config.yml _config.yml
+          cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ || echo "无文章需要复制"
+          cp "$REPO_ROOT/_config.yml" _config.yml || echo "未找到自定义配置文件"
           
           # 生成静态文件
           hexo clean
           hexo generate --force
           
-          # 验证生成
-          echo "生成的文件列表:"
-          ls -la public/2025/12/ || echo "2025/12 目录可能不存在"
+          # 验证生成结果（关键：确认 public 目录存在）
+          echo "===== 生成的静态文件列表 ====="
+          ls -la public/ || echo "public 目录为空"
+          if [ ! -d "public" ]; then
+            echo "❌ Hexo 生成失败，public 目录不存在"
+            exit 1
+          fi
 
       - name: 准备部署目录
         run: |
-          # 回到仓库根目录
-          cd ..
+          # 始终锚定仓库根目录
+          REPO_ROOT=$(pwd)
+          echo "当前仓库根目录: $REPO_ROOT"
+          
           # 清理旧的 public 目录
-          rm -rf public
-          # 将生成的静态文件移动到根目录
-          mv temp-hexo/public .
+          rm -rf "$REPO_ROOT/public"
+          
+          # 验证 temp-hexo/public 存在
+          if [ ! -d "$REPO_ROOT/temp-hexo/public" ]; then
+            echo "❌ temp-hexo/public 目录不存在，部署终止"
+            exit 1
+          fi
+          
+          # 移动静态文件到根目录（绝对路径）
+          mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
           
           # 验证最终结果
-          echo "最终生成的文件:"
-          ls -la public/ || echo "public 目录为空"
+          echo "===== 最终部署文件列表 ====="
+          ls -la "$REPO_ROOT/public/" || echo "public 目录为空"
 
       - name: Deploy to GitHub Pages
         run: |
+          REPO_ROOT=$(pwd)
+          cd "$REPO_ROOT/public"
+          
+          # 配置 Git 身份
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
           
-          # 设置部署分支为 gh-pages（GitHub Pages 默认）
-          cd public
+          # 初始化并推送 gh-pages 分支
           git init
           git checkout -b gh-pages
-          git add .
-          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-          # 推送到 gh-pages 分支
+          git add -A
+          # 处理空提交（避免无文件时失败）
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')" || git commit --allow-empty -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
 
       - name: 清理临时文件
+        if: always()  # 无论前面是否失败，都清理
         run: |
           rm -rf temp-hexo
-          echo "✅ 部署完成"
+          echo "✅ 部署流程完成（清理完毕）"
