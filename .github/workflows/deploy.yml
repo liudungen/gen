@@ -1,65 +1,60 @@
 name: Deploy Hexo to GitHub Pages
-
 on:
   push:
     branches: [ main ]
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 只保留必需权限，减少干扰
+      contents: write
     steps:
-      - name: Checkout source code
+      - name: Checkout source (带完整历史，避免依赖缺失)
         uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 0  # 拉取完整仓库历史，解决 Hexo 依赖的文件读取问题
 
-      - name: Setup Node.js 16
+      - name: Setup Node.js 16 (兼容 Hexo)
         uses: actions/setup-node@v4
         with:
           node-version: '16'
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
 
-      - name: Install dependencies
+      - name: Install Dependencies (强制安装，避免版本冲突)
         run: |
           npm config set registry https://registry.npmmirror.com
-          npm install hexo-cli -g
-          npm install --legacy-peer-deps
-          npm install hexo-renderer-pug hexo-renderer-stylus --save
+          npm install hexo-cli -g --force  # 强制安装 Hexo  CLI
+          npm install --legacy-peer-deps --force  # 强制解决依赖冲突
+          npm install hexo-renderer-pug hexo-renderer-stylus --save --force
 
-      - name: Generate static files
+      - name: Build Static Files (详细日志，确保生成成功)
         run: |
+          echo "🔍 查看 Hexo 配置文件"
+          ls -la _config.yml || echo "_config.yml 不存在！"
+          echo "🔍 查看文章目录"
+          ls -la source/_posts/ || echo "source/_posts 目录不存在！"
+          
           hexo clean
-          hexo generate --debug
-          echo "✅ 静态文件生成完成，目录结构："
-          ls -la public/
-
-      - name: Deploy to GitHub Pages (纯命令行认证)
-        env:
-          # 直接把 Secret 赋值给环境变量，强制传递
-          PAT_TOKEN: ${{ secrets.HEXO_DEPLOY_TOKEN }}
-          GITHUB_USER: liudungen
-          TARGET_REPO: liudungen/liudungen.github.io
-        run: |
-          # 先验证环境变量是否拿到令牌（关键调试）
-          echo "✅ 验证令牌是否存在：${PAT_TOKEN:0:5}..."  # 只显示前5位，避免泄露
-          if [ -z "$PAT_TOKEN" ]; then
-            echo "❌ ERROR: PAT_TOKEN 未读取到！"
+          hexo generate --debug  # 开启 debug 日志，输出生成细节
+          
+          echo "🔍 生成后 public 目录内容"
+          ls -la public/ || echo "❌ public 目录未生成！"
+          # 检查 public 目录是否有文件（至少有 index.html 等核心文件）
+          if [ $(ls -1 public/ | wc -l) -eq 0 ]; then
+            echo "❌ ERROR: public 目录为空，生成静态文件失败！"
             exit 1
           fi
 
+      - name: Deploy to Pages (确保有文件可推送)
+        run: |
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
+          
           cd public
           git init
-          git config user.name "$GITHUB_USER"
-          git config user.email "798695922@qq.com"
-          git add -A
-          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-
-          # 用环境变量拼接 URL，避免任何参数误解
-          REMOTE_URL="https://$GITHUB_USER:$PAT_TOKEN@github.com/$TARGET_REPO.git"
-          echo "✅ 推送地址：${REMOTE_URL//$PAT_TOKEN/[TOKEN_HIDDEN]}"  # 隐藏令牌显示
-
-          # 强制推送，禁用证书校验（避免云端网络兼容问题）
-          GIT_SSL_NO_VERIFY=1 git push -f "$REMOTE_URL" main
+          git branch -m main  # 强制创建 main 分支（避免分支不存在）
+          git add .  # 添加所有生成的静态文件
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"  # 必须有提交内容
+          
+          # 直接用 Secret 拼接 URL，认证已确认有效
+          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
