@@ -17,27 +17,57 @@ jobs:
           rm -rf blog
           
           # 初始化
-          npx hexo-cli init blog
+          npx hexo-cli init blog --theme landscape
           cd blog
           
-          # 安装
-          npm install hexo
+          # 安装依赖
+          npm install hexo@8.1.1 hexo-theme-landscape hexo-renderer-pug hexo-renderer-stylus
+          
+          # 强制主题
+          rm -rf themes/landscape
+          git clone --depth=1 https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+          
+          # 配置
+          sed -i 's|^theme:.*|theme: landscape|' _config.yml
+          sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
+          
+          # 删除默认文章
+          rm -f source/_posts/hello-world.md
+          
+          # 复制你的文章
+          mkdir -p source/_posts
+          if [ -d "../source/_posts" ]; then
+            cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
+          else
+            # 创建测试文章
+            cat > source/_posts/我的博客.md << 'EOF'
+---
+title: 我的博客
+date: 2025-12-03 16:00:00
+tags: [博客, Hexo]
+---
+欢迎来到我的博客！
+EOF
+          fi
           
           # 生成
+          npx hexo clean
           npx hexo generate
+          
+          # 验证
+          if [ ! -d "public" ]; then
+            echo "生成失败"
+            exit 1
+          fi
           
           # 部署
           cd public
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
-          git config --global init.defaultBranch main  # 🎯 设置默认分支
-          
           git init
-          git checkout -b main  # 🎯 创建 main 分支
+          git checkout -b main
           git add -A
-          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
-          
-          # 🎯 推送到 main 分支
+          git commit -m "Deploy with theme $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "✅ 部署成功"
+          echo "🎉 部署完成！访问：https://liudungen.github.io"
