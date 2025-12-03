@@ -1,46 +1,42 @@
 name: Hexo Deploy
-on: push
+
+on:
+  push:
+    branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: |
-          # 创建新目录
-          mkdir -p myblog
-          cd myblog
+      
+      - name: Build and Deploy
+        run: |
+          # 初始化
+          npx hexo-cli@4.3.2 init site --theme landscape
+          cd site
           
-          # 手动创建配置
-          cat > _config.yml << 'EOF'
-title: 博客
-url: https://liudungen.github.io
-permalink: :year/:month/:title/
-theme: landscape
-EOF
+          # 安装
+          npm install hexo@8.1.1
           
-          # 创建文章目录
-          mkdir -p source/_posts
-          
-          # 创建文章
-          cat > source/_posts/测试.md << 'EOF'
----
-title: 测试
-date: 2025-12-03 16:00:00
----
-测试
-EOF
+          # 修复配置
+          sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
           
           # 生成
-          npx hexo init --theme landscape --no-clone
-          npm install
           npx hexo generate
           
           # 部署
           cd public
           git init
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
           git add -A
           git commit -m "Deploy"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
