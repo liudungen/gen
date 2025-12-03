@@ -13,17 +13,11 @@ jobs:
           node-version: '20'
       - name: Build and Deploy
         run: |
-          # 清理
           rm -rf blog
-          
-          # 初始化
           npx hexo-cli init blog
           cd blog
-          
-          # 安装核心
           npm install hexo@8.1.1
           
-          # 复制主题
           if [ -d "../themes/butterfly" ]; then
             mkdir -p themes
             cp -r ../themes/butterfly themes/
@@ -31,39 +25,27 @@ jobs:
             npm install hexo-theme-butterfly
           fi
           
-          # 复制配置
           [ -f "../_config.yml" ] && cp ../_config.yml .
           [ -f "../_config.butterfly.yml" ] && cp ../_config.butterfly.yml .
           
-          # 确保主题正确
           if [ ! -f "_config.yml" ]; then
-            cat > _config.yml << 'EOF'
-title: 博客
-url: https://liudungen.github.io
-permalink: :year/:month/:title/
-theme: butterfly
-EOF
+            echo "title: 博客" > _config.yml
+            echo "url: https://liudungen.github.io" >> _config.yml
+            echo "permalink: :year/:month/:title/" >> _config.yml
+            echo "theme: butterfly" >> _config.yml
           else
             sed -i 's|^theme:.*|theme: butterfly|' _config.yml
           fi
           
-          # 复制资源
           if [ -d "../source" ]; then
             mkdir -p source
             cp -r ../source/* source/ 2>/dev/null || true
           fi
           
-          # 安装渲染器
           npm install hexo-renderer-pug hexo-renderer-stylus
-          
-          # 删除默认文章
           rm -f source/_posts/hello-world.md 2>/dev/null
-          
-          # 生成
-          npx hexo clean
           npx hexo generate
           
-          # 部署
           cd public
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
