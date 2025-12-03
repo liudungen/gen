@@ -20,36 +20,25 @@ jobs:
           npx hexo-cli init blog
           cd blog
           
-          # 安装核心依赖
+          # 安装核心
           npm install hexo@8.1.1
           
-          # 🎯 关键：复制整个主题（包括所有图片）
-          echo "=== 复制主题 ==="
+          # 复制主题
           if [ -d "../themes/butterfly" ]; then
-            echo "✅ 使用你的 butterfly 主题"
             mkdir -p themes
             cp -r ../themes/butterfly themes/
-            
-            # 🎯 安装主题依赖（如果 package.json 存在）
-            if [ -f "themes/butterfly/package.json" ]; then
-              cd themes/butterfly
-              npm install 2>/dev/null || true
-              cd ../..
-            fi
           else
-            echo "⚠️  安装默认 butterfly 主题"
             npm install hexo-theme-butterfly
           fi
           
-          # 🎯 复制配置文件
-          echo "=== 复制配置 ==="
+          # 复制配置
           [ -f "../_config.yml" ] && cp ../_config.yml .
           [ -f "../_config.butterfly.yml" ] && cp ../_config.butterfly.yml .
           
-          # 🎯 确保主题设置正确
+          # 确保主题正确
           if [ ! -f "_config.yml" ]; then
             cat > _config.yml << 'EOF'
-title: 我的博客
+title: 博客
 url: https://liudungen.github.io
 permalink: :year/:month/:title/
 theme: butterfly
@@ -58,21 +47,13 @@ EOF
             sed -i 's|^theme:.*|theme: butterfly|' _config.yml
           fi
           
-          # 🎯 复制 source 目录（文章和自定义图片）
+          # 复制资源
           if [ -d "../source" ]; then
-            echo "✅ 复制 source 目录"
             mkdir -p source
             cp -r ../source/* source/ 2>/dev/null || true
           fi
           
-          # 🎯 验证图片
-          echo "=== 验证主题图片 ==="
-          if [ -d "themes/butterfly/source/img" ]; then
-            echo "✅ 主题图片目录存在"
-            ls -la themes/butterfly/source/img/ | head -15
-          fi
-          
-          # 🎯 安装渲染器
+          # 安装渲染器
           npm install hexo-renderer-pug hexo-renderer-stylus
           
           # 删除默认文章
@@ -82,10 +63,6 @@ EOF
           npx hexo clean
           npx hexo generate
           
-          # 🎯 验证生成的文件
-          echo "=== 生成的图片文件 ==="
-          find public -name "*.png" -o -name "*.jpg" -o -name "*.gif" | head -10
-          
           # 部署
           cd public
           git config --global user.name "liudungen"
@@ -93,7 +70,7 @@ EOF
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy with all theme images $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Deploy"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "🖼️ 主题图片已部署！访问：https://liudungen.github.io"
+          echo "完成"
