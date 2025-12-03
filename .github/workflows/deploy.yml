@@ -1,8 +1,6 @@
-name: Deploy Hexo to GitHub Pages
-
 on:
   push:
-    branches: [ main ]  # 改为 main 分支（你现在用的是 main，不是模板的 master）
+    branches: [ main ]
 
 jobs:
   build-and-deploy:
@@ -12,19 +10,18 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v4
       with:
-        submodules: false  # 禁用子模块（解决之前的子模块报错，模板也没开）
+        submodules: false
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '14'  # 对齐模板的 Node14（避免依赖兼容问题）
+        node-version: '14'
         cache: 'npm'
 
     - name: Install dependencies
       run: |
         npm install hexo-cli -g
         npm install
-        # 补充 Butterfly 主题必需依赖（模板没写，但你需要）
         npm install hexo-renderer-pug hexo-renderer-stylus --save
         
     - name: Generate static files
@@ -34,15 +31,12 @@ jobs:
         
     - name: Deploy to GitHub Pages
       run: |
-        # 完全对齐模板的 Git 身份（用你的正确信息）
-        git config --global user.name "liudungen"  # 模板的用户名（你的 GitHub 用户名，注意末尾双 n？）
-        git config --global user.email "798695922@qq.com"  # 模板的邮箱（正确）
-        
+        git config --global user.name "liudungen"  # 你的正确用户名（单n）
+        git config --global user.email "798695922@qq.com"  # 你的正确邮箱
         cd public
         git init
         git branch -m main
         git add -A
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-        
-        # 关键：部署地址用模板的（确保用户名和仓库名正确）
-        git push -f "https://x-access-token:${{ secrets.hexo git }}@github.com/liudungen/liudungen.github.io.git" main
+        # 👇 只改这一行！把 secrets.hexo git 改成 secrets.HEXO_DEPLOY_TOKEN
+        git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
