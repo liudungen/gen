@@ -19,24 +19,52 @@ jobs:
       
       - name: Build and Deploy
         run: |
-          # 初始化
+          # 清理旧目录
+          rm -rf site
+          
+          # 初始化 Hexo
           npx hexo-cli@4.3.2 init site --theme landscape
           cd site
           
-          # 安装
-          npm install hexo@8.1.1
+          # 安装依赖
+          npm install hexo@8.1.1 hexo-theme-landscape
           
           # 修复配置
           sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
           
-          # 生成
+          # 删除默认文章
+          rm -f source/_posts/hello-world.md 2>/dev/null
+          
+          # 复制文章（如果有）
+          if [ -d "../source/_posts" ]; then
+            mkdir -p source/_posts
+            cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
+          fi
+          
+          # 生成静态文件
+          npx hexo clean
           npx hexo generate
           
-          # 部署
+          # 验证
+          if [ ! -d "public" ]; then
+            echo "生成失败"
+            exit 1
+          fi
+          
+          # 部署到 GitHub Pages
           cd public
-          git init
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
+          
+          git init
+          
+          # 🎯 关键修复：确保使用 main 分支
+          git checkout -b main
+          
           git add -A
-          git commit -m "Deploy"
+          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
+          
+          # 🎯 关键修复：推送到 main 分支
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+          
+          echo "✅ 部署成功"
