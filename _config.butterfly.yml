@@ -41,7 +41,9 @@ social:
 # --------------------------------------
 # Image Settings
 # --------------------------------------
-
+banner:
+  enable: true
+  url: /img/index_bg.png
 favicon: /img/favicon.png
 
 avatar:
