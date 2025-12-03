@@ -34,20 +34,19 @@ jobs:
           # 删除默认文章
           rm -f source/_posts/hello-world.md
           
-          # 复制你的文章
+          # 复制你的文章（简化，避免EOF错误）
           mkdir -p source/_posts
           if [ -d "../source/_posts" ]; then
             cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
           else
-            # 创建测试文章
-            cat > source/_posts/我的博客.md << 'EOF'
----
-title: 我的博客
-date: 2025-12-03 16:00:00
-tags: [博客, Hexo]
----
-欢迎来到我的博客！
-EOF
+            # 简单创建文章，不用EOF
+            echo "---" > source/_posts/我的博客.md
+            echo "title: 我的博客" >> source/_posts/我的博客.md
+            echo "date: 2025-12-03 16:00:00" >> source/_posts/我的博客.md
+            echo "tags: [博客, Hexo]" >> source/_posts/我的博客.md
+            echo "---" >> source/_posts/我的博客.md
+            echo "" >> source/_posts/我的博客.md
+            echo "欢迎来到我的博客！" >> source/_posts/我的博客.md
           fi
           
           # 生成
@@ -67,7 +66,7 @@ EOF
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy with theme $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "🎉 部署完成！访问：https://liudungen.github.io"
+          echo "✅ 部署完成！访问：https://liudungen.github.io"
