@@ -1,7 +1,7 @@
 name: Deploy Hexo to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [main]  # gen 仓库的 main 分支触发
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -35,88 +35,31 @@ jobs:
           npm install hexo@8.1.1 --legacy-peer-deps
           npm install hexo-renderer-pug hexo-renderer-stylus hexo-theme-landscape --save
           
-          # 复制自定义配置（如有）
+          # 合并自定义配置
           [ -f "$REPO_ROOT/_config.yml" ] && cp "$REPO_ROOT/_config.yml" _config.yml
           
           # 主题校验
-          if [ ! -d "themes/landscape" ]; then
-            rm -rf themes/landscape
-            git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
-          fi
-
-          # ========== 核心修复：简化配置生成（避免YAML冲突） ==========
-          echo "=== 重建配置文件 ==="
-          # 用 echo 逐行写入，替代 EOF 块（彻底解决语法冲突）
-          echo "title: Hexo" > _config.yml
-          echo "subtitle: ''" >> _config.yml
-          echo "description: ''" >> _config.yml
-          echo "keywords:" >> _config.yml
-          echo "author: John Doe" >> _config.yml
-          echo "language: zh-CN" >> _config.yml
-          echo "timezone: Asia/Shanghai" >> _config.yml
-          echo "url: https://liudungen.github.io" >> _config.yml
-          echo "" >> _config.yml
-          echo "# URL 设置" >> _config.yml
+          [ ! -d "themes/landscape" ] && git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+          
+          # 确保正确配置
           echo "permalink: :year/:month/:title/" >> _config.yml
-          echo "permalink_defaults:" >> _config.yml
           echo "pretty_urls:" >> _config.yml
           echo "  trailing_index: true" >> _config.yml
           echo "  trailing_html: true" >> _config.yml
-          echo "" >> _config.yml
-          echo "# 新文章名称" >> _config.yml
-          echo "new_post_name: :title.md" >> _config.yml
-          echo "" >> _config.yml
-          echo "# 主题" >> _config.yml
-          echo "theme: landscape" >> _config.yml
-          echo "" >> _config.yml
-          echo "# 生成器设置" >> _config.yml
-          echo "index_generator:" >> _config.yml
-          echo "  per_page: 10" >> _config.yml
-          echo "  order_by: -date" >> _config.yml
-          echo "archive_generator:" >> _config.yml
-          echo "  per_page: 10" >> _config.yml
-          echo "  yearly: true" >> _config.yml
-          echo "  monthly: true" >> _config.yml
-          echo "category_generator:" >> _config.yml
-          echo "  per_page: 10" >> _config.yml
-          echo "tag_generator:" >> _config.yml
-          echo "  per_page: 10" >> _config.yml
-          echo "" >> _config.yml
-          echo "# 其他设置" >> _config.yml
-          echo "highlight:" >> _config.yml
-          echo "  enable: true" >> _config.yml
-          # ========== 配置生成结束 ==========
           
-          # 合并自定义配置（仅核心字段）
-          if [ -f "$REPO_ROOT/_config.yml" ]; then
-            echo "=== 合并自定义配置 ==="
-            CUSTOM_TITLE=$(grep -E "^title:" "$REPO_ROOT/_config.yml" | head -1 | sed 's/[:]/\\:/g')
-            CUSTOM_AUTHOR=$(grep -E "^author:" "$REPO_ROOT/_config.yml" | head -1 | sed 's/[:]/\\:/g')
-            [ -n "$CUSTOM_TITLE" ] && sed -i "s/^title:.*/$CUSTOM_TITLE/" _config.yml
-            [ -n "$CUSTOM_AUTHOR" ] && sed -i "s/^author:.*/$CUSTOM_AUTHOR/" _config.yml
-          fi
-          
-          # 清理默认文章 + 复制自定义文章
-          rm -f source/_posts/hello-world.md 2>/dev/null
+          # 复制文章
           mkdir -p source/_posts
-          if [ -d "$REPO_ROOT/source/_posts" ] && [ "$(ls -A "$REPO_ROOT/source/_posts/")" ]; then
-            cp -r "$REPO_ROOT/source/_posts/"* source/_posts/
-            echo "✅ 自定义文章已复制"
-          else
-            # 生成测试文章（简化格式）
-            echo -e "---\ntitle: 测试文章\ndate: 2025-12-03 16:00:00\nlayout: post\n---\n测试内容" > source/_posts/测试文章.md
-          fi
+          [ -d "$REPO_ROOT/source/_posts" ] && cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ 2>/dev/null || true
           
-          # 生成静态文件
+          # 生成
           hexo clean
           hexo generate --force
           
-          # 验证生成结果
-          if [ ! -d "public" ] || [ -z "$(ls -A public)" ]; then
+          if [ ! -d "public" ]; then
             echo "❌ 生成失败"
             exit 1
           fi
-          echo "✅ 静态文件生成完成"
+          echo "✅ 生成完成"
 
       - name: 准备部署目录
         run: |
@@ -124,23 +67,27 @@ jobs:
           REPO_ROOT=$(pwd)
           rm -rf "$REPO_ROOT/public"
           mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
-          echo "✅ 部署目录准备完成"
+          echo "✅ 准备完成"
 
-      - name: Deploy to GitHub Pages
+      - name: 部署到 GitHub Pages
         run: |
           set -euo pipefail
           REPO_ROOT=$(pwd)
           cd "$REPO_ROOT/public"
+          
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
-          git init && git checkout -b gh-pages
+          
+          git init
+          git checkout -b main  # 推送到 main 分支
           git add -A
-          git commit -m "Deploy $(date +'%Y-%m-%d')" || git commit --allow-empty -m "Deploy $(date +'%Y-%m-%d')"
-          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
-          echo "✅ 部署成功"
+          git commit -m "Deploy Hexo: $(date +'%Y-%m-%d %H:%M:%S')"
+          
+          # 关键：推送到 liudungen.github.io 的 main 分支
+          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+          
+          echo "✅ 部署到 liudungen.github.io/main 完成"
 
-      - name: 清理临时文件
+      - name: 清理
         if: always()
-        run: |
-          rm -rf temp-hexo
-          echo "✅ 清理完成"
+        run: rm -rf temp-hexo
