@@ -18,34 +18,63 @@ jobs:
           cd blog
           npm install hexo@8.1.1
           
-          # 🎯 复制整个主题（包括 index_bg.png）
+          # 🎯 复制整个主题
           if [ -d "../themes/butterfly" ]; then
             echo "复制 butterfly 主题..."
             mkdir -p themes
             cp -r ../themes/butterfly themes/
-            
-            # 🎯 验证 banner 图
-            if [ -f "themes/butterfly/source/img/index_bg.png" ]; then
-              echo "✅ index_bg.png 已复制"
-            else
-              echo "搜索图片文件..."
-              find themes -name "*index_bg*" -o -name "*banner*"
-            fi
           else
             npm install hexo-theme-butterfly
           fi
           
-          # 复制配置
-          [ -f "../_config.yml" ] && cp ../_config.yml .
-          [ -f "../_config.butterfly.yml" ] && cp ../_config.butterfly.yml .
+          # 🎯 复制并验证配置文件
+          echo "=== 配置文件 ==="
           
-          # 确保主题正确
+          if [ -f "../_config.yml" ]; then
+            cp ../_config.yml .
+            echo "✅ 使用 _config.yml"
+          fi
+          
+          if [ -f "../_config.butterfly.yml" ]; then
+            cp ../_config.butterfly.yml .
+            echo "✅ 使用 _config.butterfly.yml"
+            
+            # 🎯 检查 banner 配置
+            echo "检查 banner 配置:"
+            grep -i "banner\|index_bg" _config.butterfly.yml || echo "无 banner 配置"
+          else
+            echo "❌ 无 _config.butterfly.yml"
+            
+            # 🎯 创建基础主题配置（包含 banner）
+            cat > _config.butterfly.yml << 'CONFIG'
+# banner 配置
+banner:
+  enable: true
+  url: /img/index_bg.png
+  
+# 头像
+avatar:
+  img: /img/avatar.png
+  
+# 站点图标
+favicon: /img/favicon.ico
+CONFIG
+            echo "✅ 创建基础主题配置"
+          fi
+          
+          # 🎯 确保主题设置正确
           if [ ! -f "_config.yml" ]; then
             echo "theme: butterfly" > _config.yml
             echo "permalink: :year/:month/:title/" >> _config.yml
+            echo "url: https://liudungen.github.io" >> _config.yml
           else
             sed -i 's|^theme:.*|theme: butterfly|' _config.yml
           fi
+          
+          # 🎯 显示最终配置
+          echo "=== 最终配置 ==="
+          echo "主题: $(grep '^theme:' _config.yml)"
+          echo "banner 图: $(grep -i 'url:' _config.butterfly.yml | head -1)"
           
           # 复制资源
           if [ -d "../source" ]; then
@@ -57,17 +86,13 @@ jobs:
           rm -f source/_posts/hello-world.md 2>/dev/null
           npx hexo generate
           
-          # 🎯 检查生成的图片
-          echo "生成的图片:"
-          find public -name "*bg*" -o -name "*banner*" | head -10
-          
           cd public
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy with banner"
+          git commit -m "Deploy with theme config"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "完成"
+          echo "✅ 完成"
