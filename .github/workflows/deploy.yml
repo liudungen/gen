@@ -151,9 +151,7 @@ EOF
           echo "首页:"
           ls -la "$REPO_ROOT/public/index.html" 2>/dev/null || echo "无首页"
           echo "日期目录:"
-          ls -la "$REPO_ROOT/public/2025/"* 2>/dev/null || echo "无2025目录"
-          echo "文章目录:"
-          find "$REPO_ROOT/public" -type d -name "*文章*" 2>/dev/null || echo "无文章目录"
+          ls -la "$REPO_ROOT/public/2025/" 2>/dev/null || echo "无2025目录"
 
       - name: Deploy to GitHub Pages
         run: |
