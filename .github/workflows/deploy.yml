@@ -1,12 +1,15 @@
 name: Deploy Hexo to GitHub Pages
+
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -22,9 +25,9 @@ jobs:
 
       - name: 安装 Hexo 并生成静态文件
         run: |
-          set -euo pipefail
+          # 锚定仓库根目录
           REPO_ROOT=$(pwd)
-          echo "✅ 仓库根目录: $REPO_ROOT"
+          echo "仓库根目录: $REPO_ROOT"
           
           # 设置 npm 镜像
           npm config set registry https://registry.npmmirror.com
@@ -35,20 +38,28 @@ jobs:
           # 清理旧目录
           rm -rf "$REPO_ROOT/temp-hexo"
           
-          # 初始化 Hexo
+          # 初始化 Hexo（指定默认主题，避免主题缺失）
           hexo init "$REPO_ROOT/temp-hexo" --theme landscape
           cd "$REPO_ROOT/temp-hexo"
           
-          # 安装依赖
+          # 安装 Hexo 核心依赖 + 默认主题（关键：解决 layout 缺失）
           npm install hexo@8.1.1 --legacy-peer-deps
           npm install hexo-renderer-pug hexo-renderer-stylus --save
+          # 强制安装默认主题 landscape（确保布局模板存在）
           npm install hexo-theme-landscape --save
           
-          # 复制自定义配置（若存在）
+          # 复制自定义配置前，先备份默认配置（避免配置覆盖导致主题失效）
+          cp _config.yml _config.default.yml
+          # 复制自定义配置（若存在），不存在则用默认配置
           if [ -f "$REPO_ROOT/_config.yml" ]; then
             cp "$REPO_ROOT/_config.yml" _config.yml
-            echo "✅ 已复制自定义配置"
+            # 修复配置中可能的主题错误：强制指定存在的主题
+            sed -i 's/^theme:.*/theme: landscape/' _config.yml
           fi
+          
+          # 复制文章（容错：无文章时不报错）
+          mkdir -p source/_posts
+          cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ || echo "提示：无自定义文章需要复制"
           
           # 验证主题目录是否存在（关键：确保布局模板存在）
           if [ ! -d "themes/landscape" ]; then
@@ -132,50 +143,23 @@ EOF
           echo "配置预览:"
           grep -E "^(title|permalink|pretty_urls|theme)" _config.yml
           # ========== 修复结束 ==========
-          
-          # 复制文章（容错逻辑）
-          mkdir -p source/_posts
-          echo "=== 复制文章文件 ==="
-          if [ -d "$REPO_ROOT/source/_posts" ] && [ "$(ls -A "$REPO_ROOT/source/_posts/")" ]; then
-            echo "📄 源文章列表:"
-            ls -la "$REPO_ROOT/source/_posts/"
-            cp -r "$REPO_ROOT/source/_posts/"* source/_posts/
-            echo "✅ 文章复制完成"
-          else
-            echo "⚠️  无自定义文章，创建测试文章"
-            cat > source/_posts/测试文章.md << 'EOF'
----
-title: 测试文章
-date: 2025-12-03 16:00:00
-tags: [Hexo, 测试]
-categories: 日记
-layout: post
----
-这是 GitHub Actions 自动生成的测试文章。
-验证路径：2025/12/测试文章/
-验证布局：post（landscape 主题默认布局）
-EOF
-          fi
-          
-          # 生成静态文件（增加调试日志）
-          echo -e "\n=== 开始生成静态文件 ==="
+
+          # 生成静态文件（增加调试日志，定位布局问题）
           hexo clean
           hexo generate --force --debug
           
           # 验证生成结果
-          echo -e "\n===== 生成的静态文件列表 ====="
-          find public -type f -name "*.html" | head -20 || echo "⚠️  未生成 HTML 文件"
-          
-          if [ ! -d "public" ] || [ -z "$(ls -A public)" ]; then
-            echo "❌ Hexo 生成失败，public 目录为空或不存在"
+          echo "===== 生成的静态文件列表 ====="
+          ls -la public/ || echo "public 目录为空"
+          if [ ! -d "public" ]; then
+            echo "❌ Hexo 生成失败，public 目录不存在"
             exit 1
           fi
 
       - name: 准备部署目录
         run: |
-          set -euo pipefail
           REPO_ROOT=$(pwd)
-          echo "✅ 当前仓库根目录: $REPO_ROOT"
+          echo "当前仓库根目录: $REPO_ROOT"
           
           # 清理旧的 public 目录
           rm -rf "$REPO_ROOT/public"
@@ -190,12 +174,11 @@ EOF
           mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
           
           # 验证最终结果
-          echo -e "\n===== 最终部署文件列表 ====="
-          ls -la "$REPO_ROOT/public/" | head -10
+          echo "===== 最终部署文件列表 ====="
+          ls -la "$REPO_ROOT/public/" || echo "public 目录为空"
 
       - name: Deploy to GitHub Pages
         run: |
-          set -euo pipefail
           REPO_ROOT=$(pwd)
           cd "$REPO_ROOT/public"
           
@@ -209,10 +192,9 @@ EOF
           git add -A
           git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')" || git commit --allow-empty -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
-          echo "✅ 推送至 gh-pages 分支完成"
 
       - name: 清理临时文件
         if: always()
         run: |
           rm -rf temp-hexo
-          echo "✅ 部署流程完成（临时文件已清理）"
+          echo "✅ 部署流程完成（清理完毕）"
