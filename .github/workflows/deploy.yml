@@ -85,9 +85,9 @@ jobs:
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
         
         # 测试token是否存在
-        if [ -z "${{ secrets.hexo_deploy_toke }}" ]; then
-          echo "ERROR: hexo_deploy_toke is not set!"
+        if [ -z "${{ secrets.hHEXO_DEPLOY_TOKEN }}" ]; then
+          echo "ERROR: HEXO_DEPLOY_TOKEN is not set!"
           exit 1
         fi
         
-        git push -f "https://x-access-token:${{ secrets.hexo_deploy_toke }}@github.com/liudungen/liudungen.github.io.git" main
+        git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
