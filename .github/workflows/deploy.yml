@@ -31,12 +31,11 @@ jobs:
         
     - name: Deploy to GitHub Pages
       run: |
-        git config --global user.name "liudungen"  # 你的正确用户名（单n）
-        git config --global user.email "798695922@qq.com"  # 你的正确邮箱
+        git config --global user.name "liudungen" 
+        git config --global user.email "798695922@qq.com"  
         cd public
         git init
         git branch -m main
         git add -A
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-        # 👇 只改这一行！把 secrets.hexo git 改成 secrets.HEXO_DEPLOY_TOKEN
         git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
