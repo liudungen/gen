@@ -11,15 +11,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Build
+      - name: Build and Deploy
         run: |
+          # 清理
           rm -rf blog
+          
+          # 初始化
           npx hexo-cli init blog
           cd blog
+          
+          # 安装
           npm install hexo
+          
+          # 生成
           npx hexo generate
+          
+          # 部署
           cd public
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
           git init
           git add -A
-          git commit -m "Deploy"
+          git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+          
+          echo "✅ 完成"
