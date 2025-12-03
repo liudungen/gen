@@ -510,20 +510,20 @@ search:
 # Share System
 # --------------------------------------
 
-share:
+#share:
   # Choose: sharejs / addtoany
   # Leave it empty if you don't need share
-  use: sharejs
+  #use: sharejs
 
   # Share.js
   # https://github.com/overtrue/share.js
-  sharejs:
-    sites: facebook,x,wechat,weibo,qq
+  #sharejs:
+  #  sites: facebook,x,wechat,weibo,qq
 
   # AddToAny
   # https://www.addtoany.com/
-  addtoany:
-    item: facebook,x,wechat,sina_weibo,facebook_messenger,email,copy_link
+  #addtoany:
+  #  item: #facebook,x,wechat,sina_weibo,facebook_messenger,email,copy_link
 
 # --------------------------------------
 # Comments System
