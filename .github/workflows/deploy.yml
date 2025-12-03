@@ -17,10 +17,10 @@ jobs:
         with:
           submodules: false
 
-      - name: Setup Node.js
+      - name: Setup Node.js 16
         uses: actions/setup-node@v4
         with:
-          node-version: '16'  # 兼容你的 Hexo 环境
+          node-version: '16'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
 
@@ -41,23 +41,19 @@ jobs:
           echo "Checking public directory:"
           ls -la public/ || echo "Public directory not found!"
 
-      - name: Configure Git
-        run: |
-          git config --global user.name "liudungen"
-          git config --global user.email "798695922@qq.com"
-
-      - name: Deploy to GitHub Pages
-        run: |
-          if [ ! -d "public" ]; then
-            echo "ERROR: public directory not found!"
-            exit 1
-          fi
-          cd public
-          git init
-          git config user.name "liudungen"
-          git config user.email "798695922@qq.com"
-          git branch -m main
-          git add -A
-          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-          # 👇 替换成你本地验证成功的「用户名:令牌」（比如 liudungen:ghp_abcdef123456）
-          git push -f "https://liudungen:ghp_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@github.com/liudungen/liudungen.github.io.git" main
+      # 👇 核心：用官方插件部署，自动处理认证
+      - name: Deploy to GitHub Pages (Official Plugin)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          # 直接传递你的 PAT 令牌（本地验证有效的那个）
+          deploy_key: ${{ secrets.HEXO_DEPLOY_TOKEN }}
+          # 部署的静态文件目录
+          publish_dir: ./public
+          # 目标仓库（你的 Pages 仓库）
+          external_repository: liudungen/liudungen.github.io
+          # 部署到目标仓库的 main 分支
+          publish_branch: main
+          # 提交信息
+          commit_message: "Deploy: ${{ github.sha }} (${{ github.event.head_commit.message }})"
+          # 强制推送（覆盖旧内容，首次部署必需）
+          force_orphan: true
