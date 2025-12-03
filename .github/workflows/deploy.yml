@@ -45,4 +45,4 @@ jobs:
         git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
         
         # 关键：部署地址用模板的（确保用户名和仓库名正确）
-        git push -f "https://x-access-token:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+        git push -f "https://x-access-token:${{ secrets.hexo git }}@github.com/liudungen/liudungen.github.io.git" main
