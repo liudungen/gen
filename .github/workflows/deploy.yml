@@ -1,26 +1,41 @@
-name: Hexo Deploy
+name: Deploy Hexo
 on:
   push:
     branches: [main]
-
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: |
-          rm -rf blog
-          npx hexo-cli init blog
-          cd blog
-          npm install hexo
-          echo "theme: landscape" >> _config.yml
-          echo "permalink: :year/:month/:title/" >> _config.yml
-          npx hexo generate
-          cd public
-          git init
-          git add -A
-          git commit -m "Deploy"
-          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Build
+      run: |
+        rm -rf blog
+        npx hexo-cli init blog
+        cd blog
+        npm install hexo hexo-theme-landscape
+        
+        # 🎯 修复：替换现有配置
+        sed -i 's|^theme:.*|theme: landscape|' _config.yml
+        sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
+        
+        # 删除默认文章
+        rm -f source/_posts/hello-world.md 2>/dev/null
+        
+        # 复制文章
+        if [ -d "../source/_posts" ]; then
+          mkdir -p source/_posts
+          cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
+        fi
+        
+        npx hexo generate
+        
+        cd public
+        git config --global user.name "liudungen"
+        git config --global user.email "798695922@qq.com"
+        git init
+        git add -A
+        git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
+        git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
