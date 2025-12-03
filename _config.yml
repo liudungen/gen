@@ -1,0 +1,22 @@
+title: Heystory
+subtitle: ""
+description: ""
+keywords:
+author: Hey
+language: zh-CN
+timezone: ""
+
+# URL 配置（必须与博客访问地址一致）
+url: https://liudungen.github.io
+root: /
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+
+# 主题配置（关联已有的 Butterfly 主题）
+theme: butterfly
+
+# 部署配置
+deploy:
+  type: git
+  repo: https://github.com/liudungen/liudungen.github.io.git
+  branch: main
