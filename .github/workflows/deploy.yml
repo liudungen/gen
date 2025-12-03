@@ -10,36 +10,187 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: 构建和部署
+          cache: 'npm'
+
+      - name: 安装 Hexo 并生成静态文件
         run: |
-          # 简化版本，避免复杂字符串
+          set -euo pipefail  # 严格模式：出错立即退出，捕获未定义变量
+          # 锚定仓库根目录
           REPO_ROOT=$(pwd)
+          echo "✅ 仓库根目录: $REPO_ROOT"
           
-          # 初始化 Hexo
-          npx hexo-cli@4.3.2 init blog --theme landscape
-          cd blog
+          # 设置 npm 镜像
+          npm config set registry https://registry.npmmirror.com
           
-          # 基本配置
-          echo "permalink: :year/:month/:title/" >> _config.yml
-          echo "future: true" >> _config.yml
-          echo "timezone: Asia/Shanghai" >> _config.yml
+          # 全局安装 Hexo CLI
+          npm install hexo-cli@4.3.2 -g
           
-          # 安装依赖
-          npm install hexo@8.1.1 hexo-theme-landscape --legacy-peer-deps
+          # 清理旧目录
+          rm -rf "$REPO_ROOT/temp-hexo"
           
-          # 生成
-          npx hexo clean
-          npx hexo generate
+          # 初始化 Hexo（指定默认主题，避免主题缺失）
+          hexo init "$REPO_ROOT/temp-hexo" --theme landscape
+          cd "$REPO_ROOT/temp-hexo"
           
-          # 部署
-          cd public
+          # 安装 Hexo 核心依赖 + 默认主题（解决 layout 缺失）
+          npm install hexo@8.1.1 --legacy-peer-deps
+          npm install hexo-renderer-pug hexo-renderer-stylus --save
+          npm install hexo-theme-landscape --save
+          
+          # 备份默认配置，复制自定义配置（容错）
+          cp _config.yml _config.default.yml
+          if [ -f "$REPO_ROOT/_config.yml" ]; then
+            cp "$REPO_ROOT/_config.yml" _config.yml
+            # 强制修复主题配置，避免自定义配置覆盖
+            sed -i 's/^theme:.*/theme: landscape/' _config.yml
+            echo "✅ 已覆盖自定义配置的 theme 字段为 landscape"
+          fi
+          
+          # 补充关键配置（修复 permalink、时区、未来文章生成）
+          echo "=== 添加关键配置 ==="
+          cat >> _config.yml << 'EOF'
+
+# URL 与路径配置
+permalink: :year/:month/:title/
+pretty_urls:
+  enable: true
+  trailing_index: true
+  trailing_html: true
+
+# 内容生成配置
+future: true          # 生成未来日期的文章
+publish_drafts: false # 不发布草稿
+disable_date: false   # 保留日期字段
+
+# 时区与语言
+timezone: Asia/Shanghai
+language: zh-CN
+
+# 主题增强配置（解决 landscape 主题渲染问题）
+theme: landscape
+EOF
+          
+          # 复制文章（完整容错逻辑）
+          mkdir -p source/_posts
+          echo "=== 复制文章文件 ==="
+          if [ -d "$REPO_ROOT/source/_posts" ] && [ "$(ls -A "$REPO_ROOT/source/_posts/")" ]; then
+            echo "📄 源文章列表:"
+            ls -la "$REPO_ROOT/source/_posts/"
+            cp -r "$REPO_ROOT/source/_posts/"* source/_posts/
+            echo "✅ 文章复制完成"
+          else
+            echo "⚠️  无自定义文章，创建测试文章"
+            cat > source/_posts/测试文章.md << 'EOF'
+---
+title: 测试文章
+date: 2025-12-03 16:00:00
+tags: [Hexo, 测试]
+categories: 日记
+layout: post  # 显式指定布局，避免 No layout 警告
+---
+这是 GitHub Actions 自动生成的测试文章。
+验证路径：2025/12/测试文章/
+验证布局：post（landscape 主题默认布局）
+EOF
+          fi
+          
+          # 强制修复主题目录（确保布局模板完整）
+          if [ ! -d "themes/landscape" ] || [ ! -f "themes/landscape/layout/post.ejs" ]; then
+            echo "⚠️  landscape 主题缺失，重新克隆"
+            rm -rf themes/landscape
+            git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+            # 验证核心布局文件是否存在
+            if [ ! -f "themes/landscape/layout/post.ejs" ]; then
+              echo "❌ landscape 主题核心布局文件缺失，部署终止"
+              exit 1
+            fi
+          fi
+          
+          # 调试信息（定位问题用）
+          echo -e "\n=== 调试信息 ==="
+          echo "📝 文章列表与 Front-matter:"
+          for file in source/_posts/*.md; do
+            if [ -f "$file" ]; then
+              echo -e "\n文件: $(basename "$file")"
+              grep -E '^title:|^date:|^layout:|^categories:' "$file"
+            fi
+          done
+          
+          echo -e "\n⚙️  关键配置项:"
+          grep -E 'permalink|future|theme|timezone|language' _config.yml
+          
+          # 生成静态文件（增加调试日志，定位布局问题）
+          echo -e "\n=== 开始生成静态文件 ==="
+          hexo clean
+          hexo generate --force --debug
+          
+          # 验证生成结果
+          echo -e "\n===== 生成的静态文件列表（前20个）====="
+          find public -type f -name "*.html" | head -20 || echo "⚠️  未生成 HTML 文件"
+          
+          echo -e "\n===== 日期目录结构 ====="
+          find public -type d -name "202*" | sort || echo "⚠️  无202x日期目录"
+          
+          if [ ! -d "public" ] || [ -z "$(ls -A public)" ]; then
+            echo "❌ Hexo 生成失败，public 目录为空或不存在"
+            exit 1
+          fi
+
+      - name: 准备部署目录
+        run: |
+          set -euo pipefail
+          REPO_ROOT=$(pwd)
+          echo "✅ 当前仓库根目录: $REPO_ROOT"
+          
+          # 清理旧的 public 目录
+          rm -rf "$REPO_ROOT/public"
+          
+          # 验证 temp-hexo/public 存在
+          if [ ! -d "$REPO_ROOT/temp-hexo/public" ]; then
+            echo "❌ temp-hexo/public 目录不存在，部署终止"
+            exit 1
+          fi
+          
+          # 移动静态文件到根目录
+          mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
+          
+          # 验证最终结果
+          echo -e "\n===== 最终部署文件列表 ====="
+          echo "📄 首页文件:"
+          ls -la "$REPO_ROOT/public/index.html" 2>/dev/null || echo "⚠️  无首页文件"
+          echo -e "\n📁 2025年目录:"
+          ls -la "$REPO_ROOT/public/2025/" 2>/dev/null || echo "⚠️  无2025年目录"
+
+      - name: Deploy to GitHub Pages
+        run: |
+          set -euo pipefail
+          REPO_ROOT=$(pwd)
+          cd "$REPO_ROOT/public"
+          
+          # 配置 Git 身份
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
+          
+          # 初始化并推送 gh-pages 分支
           git init
+          git checkout -b gh-pages
           git add -A
-          git commit -m "Deploy"
-          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main:gh-pages
+          # 处理空提交（避免无文件时失败）
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')" || git commit --allow-empty -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
+          # 推送（强制覆盖，确保最新）
+          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
+          echo "✅ 推送至 gh-pages 分支完成"
+
+      - name: 清理临时文件
+        if: always()  # 无论前面步骤是否失败，都清理
+        run: |
+          rm -rf temp-hexo
+          echo "✅ 部署流程完成（临时文件已清理）"
