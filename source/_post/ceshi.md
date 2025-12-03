@@ -6,4 +6,4 @@ categories: [日记]
 cover: ""  
 description: 测试GitHub托管源代码
 ---
-测试GitHub托管源代码，若能查看则成功
+测试GitHub托管源代码，若能查看则成功。
