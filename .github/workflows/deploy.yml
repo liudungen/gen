@@ -1,93 +1,63 @@
-name: Deploy Hexo to GitHub Pages
+name: Deploy Hexo
 on:
   push:
-    branches: [main]  # gen 仓库的 main 分支触发
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-          fetch-depth: 0
+    branches: [main]
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-
-      - name: 安装 Hexo 并生成静态文件
+      
+      - name: 生成网站
         run: |
-          set -euo pipefail
-          REPO_ROOT=$(pwd)
-          echo "✅ 仓库根目录: $REPO_ROOT"
+          # 初始化 Hexo
+          npx hexo-cli@4.3.2 init blog --theme landscape
+          cd blog
           
-          # 镜像与依赖安装
-          npm config set registry https://registry.npmmirror.com
-          npm install hexo-cli@4.3.2 -g
-          rm -rf "$REPO_ROOT/temp-hexo"
-          hexo init "$REPO_ROOT/temp-hexo" --theme landscape
-          cd "$REPO_ROOT/temp-hexo"
-          npm install hexo@8.1.1 --legacy-peer-deps
-          npm install hexo-renderer-pug hexo-renderer-stylus hexo-theme-landscape --save
+          # 安装依赖
+          npm install hexo@8.1.1 hexo-theme-landscape
           
-          # 合并自定义配置
-          [ -f "$REPO_ROOT/_config.yml" ] && cp "$REPO_ROOT/_config.yml" _config.yml
-          
-          # 主题校验
-          [ ! -d "themes/landscape" ] && git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
-          
-          # 确保正确配置
+          # 简单配置
           echo "permalink: :year/:month/:title/" >> _config.yml
           echo "pretty_urls:" >> _config.yml
           echo "  trailing_index: true" >> _config.yml
           echo "  trailing_html: true" >> _config.yml
           
-          # 复制文章
+          # 复制文章（如果有）
           mkdir -p source/_posts
-          [ -d "$REPO_ROOT/source/_posts" ] && cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ 2>/dev/null || true
+          if [ -d "../source/_posts" ]; then
+            cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
+          fi
           
           # 生成
-          hexo clean
-          hexo generate --force
+          npx hexo clean
+          npx hexo generate
           
+          # 验证
           if [ ! -d "public" ]; then
-            echo "❌ 生成失败"
+            echo "生成失败"
             exit 1
           fi
-          echo "✅ 生成完成"
-
-      - name: 准备部署目录
+      
+      - name: 部署到 GitHub
         run: |
-          set -euo pipefail
-          REPO_ROOT=$(pwd)
-          rm -rf "$REPO_ROOT/public"
-          mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
-          echo "✅ 准备完成"
-
-      - name: 部署到 GitHub Pages
-        run: |
-          set -euo pipefail
-          REPO_ROOT=$(pwd)
-          cd "$REPO_ROOT/public"
+          cd blog/public
           
+          # 配置 Git
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
           
+          # 推送
           git init
-          git checkout -b main  # 推送到 main 分支
           git add -A
-          git commit -m "Deploy Hexo: $(date +'%Y-%m-%d %H:%M:%S')"
-          
-          # 关键：推送到 liudungen.github.io 的 main 分支
+          git commit -m "Deploy"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "✅ 部署到 liudungen.github.io/main 完成"
-
       - name: 清理
         if: always()
-        run: rm -rf temp-hexo
+        run: rm -rf blog
