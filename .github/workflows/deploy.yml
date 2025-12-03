@@ -8,11 +8,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout source (带完整历史，避免依赖缺失)
+      - name: Checkout source (带完整历史)
         uses: actions/checkout@v4
         with:
           submodules: false
-          fetch-depth: 0  # 拉取完整仓库历史，解决 Hexo 依赖的文件读取问题
+          fetch-depth: 0
 
       - name: Setup Node.js 16 (兼容 Hexo)
         uses: actions/setup-node@v4
@@ -20,41 +20,46 @@ jobs:
           node-version: '16'
           cache: 'npm'
 
-      - name: Install Dependencies (强制安装，避免版本冲突)
+      - name: Install Dependencies
         run: |
           npm config set registry https://registry.npmmirror.com
-          npm install hexo-cli -g --force  # 强制安装 Hexo  CLI
-          npm install --legacy-peer-deps --force  # 强制解决依赖冲突
+          npm install hexo-cli -g --force
+          npm install --legacy-peer-deps --force
           npm install hexo-renderer-pug hexo-renderer-stylus --save --force
 
-      - name: Build Static Files (详细日志，确保生成成功)
+      - name: Build Static Files (修复命令顺序，确保生成)
         run: |
           echo "🔍 查看 Hexo 配置文件"
           ls -la _config.yml || echo "_config.yml 不存在！"
           echo "🔍 查看文章目录"
           ls -la source/_posts/ || echo "source/_posts 目录不存在！"
           
+          # 关键修复：先执行 hexo 版本验证，确保 hexo 命令可用
+          hexo -v
+          # 先清缓存，再生成（去掉 --debug 避免日志溢出，保留核心输出）
           hexo clean
-          hexo generate --debug  # 开启 debug 日志，输出生成细节
+          hexo generate
           
-          echo "🔍 生成后 public 目录内容"
-          ls -la public/ || echo "❌ public 目录未生成！"
-          # 检查 public 目录是否有文件（至少有 index.html 等核心文件）
+          # 验证生成结果（重点检查新文章和 custom 目录）
+          echo "🔍 public 目录下 2025/12 内容（新文章是否生成）"
+          ls -la public/2025/12/ || echo "2025/12 目录不存在！"
+          echo "🔍 public/css 目录内容（custom 是否同步）"
+          ls -la public/css/ || echo "css 目录不存在！"
+          
+          # 强制检查 public 目录非空
           if [ $(ls -1 public/ | wc -l) -eq 0 ]; then
-            echo "❌ ERROR: public 目录为空，生成静态文件失败！"
+            echo "❌ ERROR: public 目录为空！"
             exit 1
           fi
 
-      - name: Deploy to Pages (确保有文件可推送)
+      - name: Deploy to Pages
         run: |
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
           
           cd public
           git init
-          git branch -m main  # 强制创建 main 分支（避免分支不存在）
-          git add .  # 添加所有生成的静态文件
-          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"  # 必须有提交内容
-          
-          # 直接用 Secret 拼接 URL，认证已确认有效
+          git branch -m main
+          git add .
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
