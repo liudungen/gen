@@ -1,49 +1,132 @@
-name: Deploy Hexo - 简化测试版
+name: Deploy Hexo to GitHub Pages
 on:
   push:
     branches: [ main ]
 jobs:
-  test-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      
-      - name: 最小化测试
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 安装 Hexo 并生成静态文件
         run: |
-          echo "=== 开始测试 ==="
+          set -e  # 关键：出错时退出
+          set -x  # 关键：显示命令
           
-          # 创建最简单的 Hexo 项目
-          mkdir test-hexo
-          cd test-hexo
+          # 锚定仓库根目录
+          REPO_ROOT=$(pwd)
+          echo "仓库根目录: $REPO_ROOT"
           
-          # 初始化
-          npx hexo-cli@4.3.2 init . --no-clone 2>&1 | tail -20
+          # 设置 npm 镜像
+          npm config set registry https://registry.npmmirror.com
+          npm cache clean --force
           
-          # 安装
-          npm install hexo@8.1.1 2>&1 | tail -20
+          # 清理旧目录
+          rm -rf "$REPO_ROOT/temp-hexo"
           
-          # 创建文章
-          cat > source/_posts/test.md << 'EOF'
----
-title: 测试文章
-date: 2024-01-01 10:00:00
----
-测试内容。
-EOF
+          echo "=== 1. 使用 npx 初始化 Hexo ==="
+          # 使用 npx 避免全局安装问题
+          npx hexo-cli@4.3.2 init "$REPO_ROOT/temp-hexo" --theme landscape --no-clone
+          cd "$REPO_ROOT/temp-hexo"
           
-          # 生成
-          npx hexo generate 2>&1 | tail -30
+          echo "=== 2. 安装依赖 ==="
+          # 安装核心依赖（简化）
+          npm install hexo@8.1.1 hexo-renderer-pug hexo-renderer-stylus hexo-theme-landscape
           
-          if [ -d "public" ]; then
-            echo "✅ 测试成功"
-            ls -la public/
+          echo "=== 3. 配置 ==="
+          # 确保基本配置
+          cat >> _config.yml << 'CONFIG'
+
+# URL 设置
+permalink: :year/:month/:title/
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+
+# 生成设置
+future: true
+timezone: Asia/Shanghai
+CONFIG
+          
+          echo "=== 4. 复制文章 ==="
+          mkdir -p source/_posts
+          if [ -d "$REPO_ROOT/source/_posts" ]; then
+            echo "复制文章..."
+            cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ 2>/dev/null || echo "复制完成"
           else
-            echo "❌ 测试失败"
+            echo "创建示例文章..."
+            cat > source/_posts/示例文章.md << 'EOF'
+---
+title: 示例文章
+date: 2024-12-03 10:00:00
+tags: [测试]
+---
+欢迎！
+EOF
+          fi
+          
+          echo "=== 5. 生成静态文件 ==="
+          npx hexo clean
+          npx hexo generate
+          
+          echo "=== 6. 验证 ==="
+          if [ -d "public" ]; then
+            echo "✅ 生成成功"
+            ls -la public/
+            find public -type f -name "*.html" | head -5
+          else
+            echo "❌ 生成失败"
             exit 1
           fi
+
+      - name: 准备部署目录
+        run: |
+          set -e
+          REPO_ROOT=$(pwd)
+          
+          # 清理旧的 public 目录
+          rm -rf "$REPO_ROOT/public"
+          
+          if [ ! -d "$REPO_ROOT/temp-hexo/public" ]; then
+            echo "❌ temp-hexo/public 目录不存在"
+            exit 1
+          fi
+          
+          # 移动静态文件
+          mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
+          echo "✅ 文件准备完成"
+
+      - name: Deploy to GitHub Pages
+        run: |
+          set -e
+          REPO_ROOT=$(pwd)
+          cd "$REPO_ROOT/public"
+          
+          # 配置 Git
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
+          
+          # 初始化并推送
+          git init
+          git checkout -b gh-pages
+          git add -A
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
+
+      - name: 清理临时文件
+        if: always()
+        run: |
+          rm -rf temp-hexo
+          echo "✅ 完成"
