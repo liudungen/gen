@@ -43,7 +43,7 @@ social:
 # --------------------------------------
 banner:
   enable: true
-  img: /img/index_bg.png
+  url: /img/index_bg.png
 favicon: /img/favicon.png
 
 avatar:
