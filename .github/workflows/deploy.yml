@@ -1,28 +1,86 @@
-- name: Deploy to GitHub Pages
-      env:
-        GIT_USERNAME: liudungen
-        GIT_EMAIL: 798695922@qq.com
-        # 关键：把 Secret 存到环境变量 TOKEN 里（Shell 能识别）
-        TOKEN: ${{ secrets.HEXO_DEPLOY_TOKEN }}
-      run: |
-        if [ ! -d "public" ]; then
-          echo "ERROR: public directory not found!"
-          exit 1
-        fi
-        
-        # 先判断环境变量 TOKEN 是否为空（Shell 能正确识别）
-        if [ -z "$TOKEN" ]; then
-          echo "ERROR: HEXO_DEPLOY_TOKEN is not set!"
-          exit 1
-        fi
-        
-        cd public
-        git init
-        git config user.name "$GIT_USERNAME"
-        git config user.email "$GIT_EMAIL"
-        git branch -m main
-        git add -A
-        git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-        
-        # 用环境变量 TOKEN 推送
-        git push -f "https://x-access-token:$TOKEN@github.com/liudungen/liudungen.github.io.git" main
+name: Deploy Hexo to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm install hexo-cli -g
+          npm install --legacy-peer-deps
+          npm install hexo-renderer-pug hexo-renderer-stylus --save
+
+      - name: Debug - List files
+        run: |
+          echo "Current directory structure:"
+          ls -la
+          echo "Theme directory:"
+          ls -la themes/
+
+      - name: Generate static files
+        run: |
+          hexo clean
+          hexo generate --debug
+
+      - name: Check generated files
+        run: |
+          echo "Checking public directory:"
+          ls -la public/ || echo "Public directory not found!"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "liudungen"
+          git config --global user.email "798695922@qq.com"
+
+      - name: Deploy to GitHub Pages
+        env:
+          GIT_USERNAME: liudungen
+          GIT_EMAIL: 798695922@qq.com
+          TOKEN: ${{ secrets.HEXO_DEPLOY_TOKEN }}  # 环境变量传递Secret
+        run: |
+          if [ ! -d "public" ]; then
+            echo "ERROR: public directory not found!"
+            exit 1
+          fi
+          if [ -z "$TOKEN" ]; then
+            echo "ERROR: HEXO_DEPLOY_TOKEN is not set!"
+            exit 1
+          fi
+          cd public
+          git init
+          git config user.name "$GIT_USERNAME"
+          git config user.email "$GIT_EMAIL"
+          git branch -m main
+          git add -A
+          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push -f "https://x-access-token:$TOKEN@github.com/liudungen/liudungen.github.io.git" main
