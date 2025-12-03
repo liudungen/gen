@@ -1,58 +1,25 @@
-Current runner version: '2.329.0'
-Runner Image Provisioner
-Operating System
-  Ubuntu
-  24.04.3
-  LTS
-Runner Image
-GITHUB_TOKEN Permissions
-Secret source: Actions
-Prepare workflow directory
-Prepare all required actions
-Getting action download info
-Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
-Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
-Complete job name: deploy
-1s
-Run actions/checkout@v4
-Syncing repository: liudungen/gen
-Getting Git version info
-Temporarily overriding HOME='/home/runner/work/_temp/1b83d2db-9267-49d0-813a-a921b896ec6e' before making global git config changes
-Adding repository directory to the temporary git global config as a safe directory
-/usr/bin/git config --global --add safe.directory /home/runner/work/gen/gen
-Deleting the contents of '/home/runner/work/gen/gen'
-Initializing the repository
-Disabling automatic garbage collection
-Setting up auth
-Fetching the repository
-Determining the checkout info
-/usr/bin/git sparse-checkout disable
-/usr/bin/git config --local --unset-all extensions.worktreeConfig
-Checking out the ref
-/usr/bin/git log -1 --format=%H
-461965decfff540cd781dd3d35d8235513fbc7e0
-2s
-Run actions/setup-node@v4
-Found in cache @ /opt/hostedtoolcache/node/20.19.5/x64
-Environment details
-15s
-0s
-Post job cleanup.
-1s
-Post job cleanup.
-/usr/bin/git version
-git version 2.51.2
-Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/cfee3e67-71ef-4205-bf5e-e8536da811ff/.gitconfig'
-Temporarily overriding HOME='/home/runner/work/_temp/cfee3e67-71ef-4205-bf5e-e8536da811ff' before making global git config changes
-Adding repository directory to the temporary git global config as a safe directory
-/usr/bin/git config --global --add safe.directory /home/runner/work/gen/gen
-/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
-/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-http.https://github.com/.extraheader
-/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
-/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
-/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
-0s
-Cleaning up orphan processes
+name: Hexo Deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build
+        run: |
+          rm -rf blog
+          npx hexo-cli init blog
+          cd blog
+          npm install hexo
+          npx hexo generate
+          cd public
+          git init
+          git add -A
+          git commit -m "Deploy"
+          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
