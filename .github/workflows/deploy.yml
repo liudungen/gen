@@ -18,25 +18,36 @@ jobs:
           cd blog
           npm install hexo@8.1.1
           
+          # 🎯 复制整个主题（包括 index_bg.png）
           if [ -d "../themes/butterfly" ]; then
+            echo "复制 butterfly 主题..."
             mkdir -p themes
             cp -r ../themes/butterfly themes/
+            
+            # 🎯 验证 banner 图
+            if [ -f "themes/butterfly/source/img/index_bg.png" ]; then
+              echo "✅ index_bg.png 已复制"
+            else
+              echo "搜索图片文件..."
+              find themes -name "*index_bg*" -o -name "*banner*"
+            fi
           else
             npm install hexo-theme-butterfly
           fi
           
+          # 复制配置
           [ -f "../_config.yml" ] && cp ../_config.yml .
           [ -f "../_config.butterfly.yml" ] && cp ../_config.butterfly.yml .
           
+          # 确保主题正确
           if [ ! -f "_config.yml" ]; then
-            echo "title: 博客" > _config.yml
-            echo "url: https://liudungen.github.io" >> _config.yml
+            echo "theme: butterfly" > _config.yml
             echo "permalink: :year/:month/:title/" >> _config.yml
-            echo "theme: butterfly" >> _config.yml
           else
             sed -i 's|^theme:.*|theme: butterfly|' _config.yml
           fi
           
+          # 复制资源
           if [ -d "../source" ]; then
             mkdir -p source
             cp -r ../source/* source/ 2>/dev/null || true
@@ -46,13 +57,17 @@ jobs:
           rm -f source/_posts/hello-world.md 2>/dev/null
           npx hexo generate
           
+          # 🎯 检查生成的图片
+          echo "生成的图片:"
+          find public -name "*bg*" -o -name "*banner*" | head -10
+          
           cd public
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy"
+          git commit -m "Deploy with banner"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
           echo "完成"
