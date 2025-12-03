@@ -60,4 +60,4 @@ jobs:
           git add -A
           git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
           # 👇 替换成你本地验证成功的「用户名:令牌」（比如 liudungen:ghp_abcdef123456）
-          git push -f "https://liudungen:ghp_你的实际PAT令牌@github.com/liudungen/liudungen.github.io.git" main
+          git push -f "https://liudungen:ghp_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@github.com/liudungen/liudungen.github.io.git" main
