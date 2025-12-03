@@ -41,19 +41,18 @@ jobs:
           echo "Checking public directory:"
           ls -la public/ || echo "Public directory not found!"
 
-      # 👇 核心：用官方插件部署，自动处理认证
       - name: Deploy to GitHub Pages (Official Plugin)
         uses: peaceiris/actions-gh-pages@v4
         with:
-          # 直接传递你的 PAT 令牌（本地验证有效的那个）
+          # 自动读取你仓库中名为 HEXO_DEPLOY_TOKEN 的 Secret（令牌已确认正确）
           deploy_key: ${{ secrets.HEXO_DEPLOY_TOKEN }}
-          # 部署的静态文件目录
+          # 部署 Hexo 生成的静态文件目录
           publish_dir: ./public
-          # 目标仓库（你的 Pages 仓库）
+          # 目标 Pages 仓库（你的仓库，已确认存在）
           external_repository: liudungen/liudungen.github.io
-          # 部署到目标仓库的 main 分支
+          # 部署到 main 分支（已确认是默认分支）
           publish_branch: main
-          # 提交信息
+          # 提交信息（包含原提交信息，方便追溯）
           commit_message: "Deploy: ${{ github.sha }} (${{ github.event.head_commit.message }})"
-          # 强制推送（覆盖旧内容，首次部署必需）
+          # 强制部署，避免分支冲突（首次部署必需）
           force_orphan: true
