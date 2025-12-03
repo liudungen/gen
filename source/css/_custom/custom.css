@@ -1,0 +1,56 @@
+/* 全局蓝色元素强制替换为灰色 */
+a:hover, .toc-link.active, .pagination .current {
+  color: #666666 !important;
+}
+
+/* 侧边栏卡片样式统一 */
+.aside-card {
+  background-color: #fafafa !important;
+  border: 1px solid #eeeeee !important;
+}
+
+/* 按钮和交互元素 */
+.btn, .scroll-to-top, .rightside-item {
+  background-color: #f0f0f0 !important;
+  color: #666666 !important;
+  border: 1px solid #dddddd !important;
+}
+
+.btn:hover, .scroll-to-top:hover, .rightside-item:hover {
+  background-color: #e5e5e5 !important;
+  color: #333333 !important;
+}
+
+/* 底部样式强化 */
+.footer-wrap, .footer {
+  background-color: #f5f5f5 !important;
+  color: #666666 !important;
+  border-top: 1px solid #dddddd !important;
+}
+
+.footer a {
+  color: #888888 !important;
+}
+
+.footer a:hover {
+  color: #333333 !important;
+}
+
+/* 标签和分类颜色统一灰色 */
+.tag-cloud a, .category-list a {
+  background-color: #f0f0f0 !important;
+  color: #666666 !important;
+  border: 1px solid #dddddd !important;
+}
+
+.tag-cloud a:hover, .category-list a:hover {
+  background-color: #e5e5e5 !important;
+  color: #333333 !important;
+}
+
+/* 代码块样式调整 */
+code, pre {
+  background-color: rgba(240, 240, 240, 0.8) !important;
+  color: #666666 !important;
+  border: 1px solid #dddddd !important;
+}
