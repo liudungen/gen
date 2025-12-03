@@ -1,63 +1,46 @@
-name: Deploy Hexo
-on:
-  push:
-    branches: [main]
-
+name: Hexo Deploy
+on: push
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: 生成网站
-        run: |
-          # 初始化 Hexo
-          npx hexo-cli@4.3.2 init blog --theme landscape
-          cd blog
+      - run: |
+          # 创建新目录
+          mkdir -p myblog
+          cd myblog
           
-          # 安装依赖
-          npm install hexo@8.1.1 hexo-theme-landscape
+          # 手动创建配置
+          cat > _config.yml << 'EOF'
+title: 博客
+url: https://liudungen.github.io
+permalink: :year/:month/:title/
+theme: landscape
+EOF
           
-          # 简单配置
-          echo "permalink: :year/:month/:title/" >> _config.yml
-          echo "pretty_urls:" >> _config.yml
-          echo "  trailing_index: true" >> _config.yml
-          echo "  trailing_html: true" >> _config.yml
-          
-          # 复制文章（如果有）
+          # 创建文章目录
           mkdir -p source/_posts
-          if [ -d "../source/_posts" ]; then
-            cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
-          fi
+          
+          # 创建文章
+          cat > source/_posts/测试.md << 'EOF'
+---
+title: 测试
+date: 2025-12-03 16:00:00
+---
+测试
+EOF
           
           # 生成
-          npx hexo clean
+          npx hexo init --theme landscape --no-clone
+          npm install
           npx hexo generate
           
-          # 验证
-          if [ ! -d "public" ]; then
-            echo "生成失败"
-            exit 1
-          fi
-      
-      - name: 部署到 GitHub
-        run: |
-          cd blog/public
-          
-          # 配置 Git
-          git config --global user.name "liudungen"
-          git config --global user.email "798695922@qq.com"
-          
-          # 推送
+          # 部署
+          cd public
           git init
           git add -A
           git commit -m "Deploy"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
-          
-      - name: 清理
-        if: always()
-        run: rm -rf blog
