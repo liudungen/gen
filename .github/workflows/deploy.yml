@@ -44,15 +44,10 @@ jobs:
       - name: Deploy to GitHub Pages (Official Plugin)
         uses: peaceiris/actions-gh-pages@v4
         with:
-          # 自动读取你仓库中名为 HEXO_DEPLOY_TOKEN 的 Secret（令牌已确认正确）
-          deploy_key: ${{ secrets.HEXO_DEPLOY_TOKEN }}
-          # 部署 Hexo 生成的静态文件目录
+          # 👇 关键修正：deploy_key → personal_token（PAT令牌专用参数）
+          personal_token: ${{ secrets.HEXO_DEPLOY_TOKEN }}
           publish_dir: ./public
-          # 目标 Pages 仓库（你的仓库，已确认存在）
           external_repository: liudungen/liudungen.github.io
-          # 部署到 main 分支（已确认是默认分支）
           publish_branch: main
-          # 提交信息（包含原提交信息，方便追溯）
           commit_message: "Deploy: ${{ github.sha }} (${{ github.event.head_commit.message }})"
-          # 强制部署，避免分支冲突（首次部署必需）
           force_orphan: true
