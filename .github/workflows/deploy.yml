@@ -20,59 +20,43 @@ jobs:
           npx hexo-cli init blog
           cd blog
           
-          # 安装依赖
-          npm install hexo@8.1.1 hexo-theme-butterfly hexo-renderer-pug hexo-renderer-stylus
+          # 安装
+          npm install hexo@8.1.1 hexo-theme-butterfly
           
-          # 🎯 删除默认主题，使用你的主题
-          rm -rf themes/butterfly
+          # 🎯 直接使用所有配置
+          echo "=== 复制配置文件 ==="
+          cp ../_config.yml . 2>/dev/null || true
+          cp ../_config.butterfly.yml . 2>/dev/null || true
           
-          # 🎯 复制你的整个主题（如果存在）
-          if [ -d "../themes/butterfly" ]; then
-            echo "✅ 使用你的主题文件夹"
-            cp -r ../themes/butterfly themes/
-          else
-            echo "⚠️  使用默认 butterfly 主题"
-            # 确保主题目录存在
-            [ ! -d "themes/butterfly" ] && npm install hexo-theme-butterfly
+          # 🎯 确保使用 butterfly 主题
+          sed -i 's|^theme:.*|theme: butterfly|' _config.yml 2>/dev/null || echo "theme: butterfly" >> _config.yml
+          
+          # 🎯 复制整个主题目录（包含图片）
+          if [ -d "../themes" ]; then
+            echo "✅ 复制 themes 目录"
+            mkdir -p themes
+            cp -r ../themes/* themes/ 2>/dev/null || true
           fi
           
-          # 🎯 复制主题配置文件（如果存在）
-          for config in "../_config.butterfly.yml" "../_config.butterfly.yaml"; do
-            if [ -f "$config" ]; then
-              cp "$config" .
-              echo "✅ 复制主题配置: $(basename "$config")"
-            fi
-          done
-          
-          # 🎯 复制你的主配置（如果存在）
-          if [ -f "../_config.yml" ]; then
-            cp ../_config.yml _config.yml
-            echo "✅ 使用你的配置"
-          else
-            # 基础配置
-            sed -i 's|^theme:.*|theme: butterfly|' _config.yml
-            sed -i 's|^permalink:.*|permalink: :year/:month/:title/|' _config.yml
+          # 🎯 复制 source 目录
+          if [ -d "../source" ]; then
+            echo "✅ 复制 source 目录"
+            cp -r ../source/* source/ 2>/dev/null || true
           fi
           
-          # 复制文章
-          rm -f source/_posts/hello-world.md
-          mkdir -p source/_posts
-          [ -d "../source/_posts" ] && cp -r ../source/_posts/* source/_posts/ 2>/dev/null || true
-          
-          # 🎯 复制图片资源（如果存在）
-          if [ -d "../source/img" ]; then
-            echo "✅ 复制图片资源"
-            mkdir -p source/img
-            cp -r ../source/img/* source/img/ 2>/dev/null || true
+          # 🎯 验证图片
+          echo "=== 图片验证 ==="
+          if [ -f "themes/butterfly/source/img/index_bg.png" ]; then
+            echo "✅ banner 图存在: themes/butterfly/source/img/index_bg.png"
+            ls -la themes/butterfly/source/img/
+          else
+            echo "❌ banner 图不存在"
+            find . -name "index_bg.png" -o -name "*banner*" | head -10
           fi
           
           # 生成
           npx hexo clean
           npx hexo generate
-          
-          # 验证
-          echo "=== 验证图片 ==="
-          find public -name "*.png" -o -name "*.jpg" -o -name "*.gif" | head -10
           
           # 部署
           cd public
@@ -81,7 +65,7 @@ jobs:
           git init
           git checkout -b main
           git add -A
-          git commit -m "Deploy with theme images $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Deploy with banner image $(date +'%Y-%m-%d %H:%M:%S')"
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "🎨 主题图片已部署！访问：https://liudungen.github.io"
+          echo "🎨 部署完成！banner图应该显示了。"
