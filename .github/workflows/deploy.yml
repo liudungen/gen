@@ -1,129 +1,75 @@
-name: Deploy Hexo to GitHub Pages
-on:
-  push:
-    branches: [ main ]
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-          fetch-depth: 0
+# 验证主题目录是否存在（关键：确保布局模板存在）
+if [ ! -d "themes/landscape" ]; then
+  echo "❌ 主题 landscape 目录缺失，尝试重新克隆"
+  rm -rf themes/landscape
+  git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
+fi
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+# ========== 修复配置 ==========
+echo "=== 修复配置文件 ==="
+# 1. 备份原配置
+cp _config.yml _config.yml.backup
 
-      - name: 安装 Hexo 并生成静态文件
-        run: |
-          # 锚定仓库根目录
-          REPO_ROOT=$(pwd)
-          echo "仓库根目录: $REPO_ROOT"
-          
-          # 设置 npm 镜像
-          npm config set registry https://registry.npmmirror.com
-          
-          # 全局安装 Hexo CLI
-          npm install hexo-cli@4.3.2 -g
-          
-          # 清理旧目录
-          rm -rf "$REPO_ROOT/temp-hexo"
-          
-          # 初始化 Hexo（指定默认主题，避免主题缺失）
-          hexo init "$REPO_ROOT/temp-hexo" --theme landscape
-          cd "$REPO_ROOT/temp-hexo"
-          
-          # 安装 Hexo 核心依赖 + 默认主题（关键：解决 layout 缺失）
-          npm install hexo@8.1.1 --legacy-peer-deps
-          npm install hexo-renderer-pug hexo-renderer-stylus --save
-          # 强制安装默认主题 landscape（确保布局模板存在）
-          npm install hexo-theme-landscape --save
-          
-          # 复制自定义配置前，先备份默认配置（避免配置覆盖导致主题失效）
-          cp _config.yml _config.default.yml
-          # 复制自定义配置（若存在），不存在则用默认配置
-          if [ -f "$REPO_ROOT/_config.yml" ]; then
-            cp "$REPO_ROOT/_config.yml" _config.yml
-            # 修复配置中可能的主题错误：强制指定存在的主题
-            sed -i 's/^theme:.*/theme: landscape/' _config.yml
-          fi
-          
-          # 复制文章（容错：无文章时不报错）
-          mkdir -p source/_posts
-          cp -r "$REPO_ROOT/source/_posts/"* source/_posts/ || echo "提示：无自定义文章需要复制"
-          
-          # 验证主题目录是否存在（关键：确保布局模板存在）
-          if [ ! -d "themes/landscape" ]; then
-            echo "❌ 主题 landscape 目录缺失，尝试重新克隆"
-            rm -rf themes/landscape
-            git clone https://github.com/hexojs/hexo-theme-landscape.git themes/landscape
-          fi
-          
-          # 生成静态文件（增加调试日志，定位布局问题）
-          hexo clean
-          # 在 "生成静态文件" 步骤之前添加：
-          echo "=== 配置URL结构 ==="
-          # 修改 _config.yml
-          sed -i 's/^permalink:.*/permalink: :year\/:month\/:title\//' _config.yml
-          sed -i 's/^pretty_urls:.*/pretty_urls:/' _config.yml
-          echo "  trailing_index: true" >> _config.yml
-          echo "  trailing_html: true" >> _config.yml
-          echo "new_post_name: :title.md" >> _config.yml
-          hexo generate --force --debug
-          
-          # 验证生成结果
-          echo "===== 生成的静态文件列表 ====="
-          ls -la public/ || echo "public 目录为空"
-          if [ ! -d "public" ]; then
-            echo "❌ Hexo 生成失败，public 目录不存在"
-            exit 1
-          fi
+# 2. 创建干净的配置文件
+cat > _config.yml << 'EOF'
+title: Hexo
+subtitle: ''
+description: ''
+keywords:
+author: John Doe
+language: zh-CN
+timezone: Asia/Shanghai
+url: https://liudungen.github.io
 
-      - name: 准备部署目录
-        run: |
-          REPO_ROOT=$(pwd)
-          echo "当前仓库根目录: $REPO_ROOT"
-          
-          # 清理旧的 public 目录
-          rm -rf "$REPO_ROOT/public"
-          
-          # 验证 temp-hexo/public 存在
-          if [ ! -d "$REPO_ROOT/temp-hexo/public" ]; then
-            echo "❌ temp-hexo/public 目录不存在，部署终止"
-            exit 1
-          fi
-          
-          # 移动静态文件到根目录
-          mv "$REPO_ROOT/temp-hexo/public" "$REPO_ROOT/"
-          
-          # 验证最终结果
-          echo "===== 最终部署文件列表 ====="
-          ls -la "$REPO_ROOT/public/" || echo "public 目录为空"
+# URL 设置
+permalink: :year/:month/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
 
-      - name: Deploy to GitHub Pages
-        run: |
-          REPO_ROOT=$(pwd)
-          cd "$REPO_ROOT/public"
-          
-          # 配置 Git 身份
-          git config --global user.name "liudungen"
-          git config --global user.email "798695922@qq.com"
-          
-          # 初始化并推送 gh-pages 分支
-          git init
-          git checkout -b gh-pages
-          git add -A
-          git commit -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')" || git commit --allow-empty -m "Deploy: $(date +'%Y-%m-%d %H:%M:%S')"
-          git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" gh-pages
+# 新文章名称
+new_post_name: :title.md
 
-      - name: 清理临时文件
-        if: always()
-        run: |
-          rm -rf temp-hexo
-          echo "✅ 部署流程完成（清理完毕）"
+# 主题
+theme: landscape
+
+# 生成器设置
+index_generator:
+  per_page: 10
+  order_by: -date
+archive_generator:
+  per_page: 10
+  yearly: true
+  monthly: true
+category_generator:
+  per_page: 10
+tag_generator:
+  per_page: 10
+
+# 其他设置
+highlight:
+  enable: true
+EOF
+
+echo "✅ 配置文件已重建"
+
+# 3. 如果有自定义配置，合并
+if [ -f "_config.yml.backup" ]; then
+  echo "合并自定义配置..."
+  # 保留重要的自定义设置（如果有）
+  grep -E "^(title:|subtitle:|author:|language:|timezone:|url:|deploy:)" _config.yml.backup >> _config.yml 2>/dev/null || true
+fi
+
+# 4. 删除默认文章
+echo "删除默认文章..."
+rm -f source/_posts/hello-world.md 2>/dev/null || echo "无默认文章"
+
+# 5. 显示最终配置
+echo "最终配置预览:"
+grep -E "^(permalink|pretty_urls|theme|new_post_name)" _config.yml
+# ========== 修复结束 ==========
+
+# 生成静态文件（增加调试日志，定位布局问题）
+hexo clean
+hexo generate --force --debug
