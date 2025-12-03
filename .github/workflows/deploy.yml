@@ -59,7 +59,7 @@ jobs:
           ls -la public/2025/12/
           
           # 9. 复制 public 目录回原路径
-          cp -r public ../public
+          cp -r temp-hexo/public/* ../
 
       - name: 验证最终生成结果
         run: |
