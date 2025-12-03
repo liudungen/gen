@@ -30,9 +30,14 @@ jobs:
           cd public
           git config --global user.name "liudungen"
           git config --global user.email "798695922@qq.com"
+          git config --global init.defaultBranch main  # 🎯 设置默认分支
+          
           git init
+          git checkout -b main  # 🎯 创建 main 分支
           git add -A
           git commit -m "Deploy $(date +'%Y-%m-%d %H:%M:%S')"
+          
+          # 🎯 推送到 main 分支
           git push -f "https://liudungen:${{ secrets.HEXO_DEPLOY_TOKEN }}@github.com/liudungen/liudungen.github.io.git" main
           
-          echo "✅ 完成"
+          echo "✅ 部署成功"
